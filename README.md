@@ -21,10 +21,12 @@ Allegro Position Monitor to rozwiązanie składające się z:
 - [x] Konfiguracja gitignore
 
 ### 🔄 Faza 1: Core Extension Development (W TRAKCIE)
-- [ ] Lokalne środowisko PocketBase
-- [ ] Testowanie podstawowych funkcji
-- [ ] Integracja z Chrome Developer Mode
-- [ ] Debugging i optymalizacja
+- [x] Instrukcje setup PocketBase
+- [x] Konfiguracja collections schema
+- [x] Dokumentacja testowania extension
+- [ ] Instalacja i uruchomienie PocketBase
+- [ ] Testowanie extension w Chrome Developer Mode
+- [ ] Debugging i optymalizacja parsowania
 
 ### ⏳ Faza 2: Web Dashboard Development (PLANOWANE)
 - [ ] Interfejs logowania
@@ -62,28 +64,23 @@ allegro-monitor/
 └── README.md                 # Ten plik
 ```
 
-## 🎯 Następne kroki
+## 🎯 Następne kroki (Faza 1)
 
-1. **Setup PocketBase lokalnie**
-   ```bash
-   # Pobierz PocketBase
-   # Skonfiguruj collections (users, positions)
-   # Uruchom lokalny serwer
-   ```
+1. **Setup PocketBase**
+   - Pobierz PocketBase z: https://github.com/pocketbase/pocketbase/releases/v0.28.3
+   - Rozpakuj do `/backend/`
+   - Uruchom: `./pocketbase serve`
+   - Skonfiguruj collections według `/backend/collections-schema.json`
 
 2. **Test Chrome Extension**
-   ```bash
-   # Załaduj extension w Chrome Developer Mode
-   # Przetestuj na stronach Allegro
-   # Sprawdź komunikację z PocketBase
-   ```
+   - Załaduj extension w Chrome Developer Mode (`chrome://extensions/`)
+   - Wybierz folder `/chrome-extension/`
+   - Przetestuj zgodnie z `/docs/chrome-extension-testing.md`
 
-3. **Rozpocznij development dashboardu**
-   ```bash
-   # Setup struktura web-dashboard
-   # Implementuj interfejs logowania
-   # Dodaj funkcje przeglądania danych
-   ```
+3. **Debugging & Optymalizacja**
+   - Sprawdź parsowanie produktów Allegro
+   - Zweryfikuj komunikację z PocketBase  
+   - Optymalizuj selektory CSS
 
 ## 📖 Dokumentacja
 

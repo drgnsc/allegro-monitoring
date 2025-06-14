@@ -1,0 +1,99 @@
+{
+  "collections": [
+    {
+      "id": "users",
+      "name": "users",
+      "type": "auth",
+      "system": false,
+      "schema": [
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        }
+      ],
+      "indexes": [],
+      "listRule": "",
+      "viewRule": "id = @request.auth.id",
+      "createRule": "",
+      "updateRule": "id = @request.auth.id",
+      "deleteRule": "id = @request.auth.id",
+      "options": {
+        "allowEmailAuth": true,
+        "allowOAuth2Auth": false,
+        "allowUsernameAuth": false,
+        "exceptEmailDomains": [],
+        "manageRule": "",
+        "minPasswordLength": 8,
+        "onlyEmailDomains": [],
+        "requireEmail": true
+      }
+    },
+    {
+      "id": "positions",
+      "name": "positions", 
+      "type": "base",
+      "system": false,
+      "schema": [
+        {
+          "name": "userId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "users",
+            "cascadeDelete": true,
+            "minSelect": 1,
+            "maxSelect": 1
+          }
+        },
+        {
+          "name": "url",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 2000
+          }
+        },
+        {
+          "name": "keyword",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 500
+          }
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "timestamp",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "products",
+          "type": "json",
+          "required": true,
+          "options": {
+            "maxSize": 1048576
+          }
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_positions_userId_date ON positions (userId, date)",
+        "CREATE INDEX idx_positions_keyword ON positions (keyword)",
+        "CREATE INDEX idx_positions_timestamp ON positions (timestamp DESC)"
+      ],
+      "listRule": "userId = @request.auth.id",
+      "viewRule": "userId = @request.auth.id", 
+      "createRule": "@request.auth.id != \"\"",
+      "updateRule": "userId = @request.auth.id",
+      "deleteRule": "userId = @request.auth.id"
+    }
+  ]
+} 
