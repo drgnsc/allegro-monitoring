@@ -8,24 +8,26 @@ class AllegroContentParser {
         this.autoScanEnabled = false;
         this.currentUrl = window.location.href;
         this.lastScanData = null;
+        this.lastScanTime = 0; // Timestamp ostatniego skanu - zapobieganie zbyt częstemu skanowaniu
         
         // Selektory CSS dla różnych elementów Allegro
         this.selectors = {
-            // Różne warianty selektorów produktów (Allegro czasem zmienia strukturę)
+            // Różne warianty selektorów produktów - TYLKO ORGANICZNE (nie sponsorowane)
             productContainers: [
+                'h2:has(a[href*="/oferta/"]:not([href*="/events/clicks"]))',    // Desktop H2 struktura 
+                'a[href*="/oferta/"]:not([href*="/events/clicks"])',           // Direct links
                 'article[data-analytics-view-custom-index]',
                 'div[data-testid="listing-item"]',
                 'article[data-role="offer"]',
-                'div[data-role="offer"]',
-                'a[href*="/oferta/"]'
+                'div[data-role="offer"]'
             ],
             productTitle: [
+                // Tytuł jest bezpośrednio w linku
+                'a[href*="/oferta/"]',
                 'h2 a',
                 'h3 a', 
                 'a[data-testid="offer-title"]',
-                '.offer-title',
-                'a[href*="/oferta/"] h2',
-                'a[href*="/oferta/"] h3'
+                '.offer-title'
             ],
             productPrice: [
                 'span[data-testid="price"]',
@@ -67,10 +69,11 @@ class AllegroContentParser {
             
             // Sprawdź auto-scan
             if (this.autoScanEnabled) {
-                // Opóźnij auto-scan o 2 sekundy, żeby strona się załadowała
+                // Opóźnij auto-scan o 5-10 sekund, żeby strona się załadowała i nie wyglądać jak bot
+                const delay = 5000 + Math.random() * 5000;
                 setTimeout(() => {
                     this.performScan();
-                }, 2000);
+                }, delay);
             }
             
             // Nasłuchuj zmian URL (SPA navigation)
@@ -125,10 +128,12 @@ class AllegroContentParser {
                 this.currentUrl = url;
                 
                 if (this.isAllegroListingPage() && this.autoScanEnabled) {
-                    // Opóźnij scan po zmianie URL
+                    // DUŻE opóźnienie po zmianie URL - 15-30 sekund!
+                    const delay = 15000 + Math.random() * 15000;
+                    console.log(`Auto-scan scheduled in ${Math.round(delay/1000)} seconds`);
                     setTimeout(() => {
                         this.performScan();
-                    }, 3000);
+                    }, delay);
                 }
             }
         }).observe(document, { subtree: true, childList: true });
@@ -152,21 +157,48 @@ class AllegroContentParser {
             console.log('Scan already in progress');
             return { success: false, error: 'Skanowanie już w toku' };
         }
+        
+        // Sprawdź czy nie skanuje zbyt często (minimum 60 sekund między skanami)
+        const now = Date.now();
+        const timeSinceLastScan = now - this.lastScanTime;
+        const minInterval = 60000; // 60 sekund
+        
+        if (timeSinceLastScan < minInterval) {
+            const remainingTime = Math.ceil((minInterval - timeSinceLastScan) / 1000);
+            console.log(`Scan cooldown: ${remainingTime} seconds remaining`);
+            return { 
+                success: false, 
+                error: `Poczekaj jeszcze ${remainingTime} sekund przed następnym skanem` 
+            };
+        }
 
         this.isScanning = true;
+        this.lastScanTime = now;
         
         try {
-            console.log('Starting position scan...');
+            console.log('Starting SLOW human-like scan...');
             
-            // Poczekaj na załadowanie strony
+            // Początkowa pauza jak prawdziwy użytkownik
+            await this.simulateHumanPause();
+            
+            // Symuluj wstępne scrollowanie przed skanem
+            await this.simulateHumanScrolling();
+            
+            // Poczekaj na załadowanie strony (bardzo powoli)
             await this.waitForPageLoad();
             
-            // Sparsuj produkty
-            const products = this.parseProducts();
+            // Kolejna ludzka pauza przed parsowaniem
+            await this.simulateHumanPause();
+            
+            // Sparsuj produkty bardzo powoli
+            const products = await this.parseProducts();
             
             if (products.length === 0) {
                 throw new Error('Nie znaleziono produktów na tej stronie');
             }
+            
+            // Finalna pauza przed wysłaniem danych
+            await this.randomDelay(2000, 5000);
 
             // Przygotuj dane do wysłania
             const scanData = {
@@ -211,20 +243,40 @@ class AllegroContentParser {
     }
 
     async waitForPageLoad() {
-        // Poczekaj na załadowanie produktów
+        // SYMULUJ PRAWDZIWEGO UŻYTKOWNIKA - bardzo powoli!
         return new Promise((resolve) => {
-            const checkProducts = () => {
+            let attempts = 0;
+            const maxAttempts = 30; // 30 sekund max
+            
+            const checkProducts = async () => {
+                attempts++;
+                
+                // Symuluj scrollowanie co kilka sekund
+                if (attempts % 3 === 0) {
+                    await this.simulateHumanScrolling();
+                }
+                
+                // Symuluj ruch myszy co kilka prób
+                if (attempts % 5 === 0) {
+                    this.simulateMouseMovement();
+                }
+                
                 const products = this.findProductElements();
                 if (products.length > 0) {
+                    console.log(`Products found after ${attempts} attempts, waiting extra time...`);
+                    // DUŻE opóźnienie 8-15 sekund po znalezieniu produktów
+                    setTimeout(resolve, 8000 + Math.random() * 7000);
+                } else if (attempts >= maxAttempts) {
+                    console.log('Max attempts reached, proceeding anyway...');
                     resolve();
                 } else {
-                    setTimeout(checkProducts, 500);
+                    // Zwiększone opóźnienie między próbami
+                    setTimeout(checkProducts, 1000 + Math.random() * 2000); // 1-3 sekundy
                 }
             };
             
-            // Maksymalnie 10 sekund oczekiwania
-            setTimeout(() => resolve(), 10000);
-            checkProducts();
+            // Pierwsze sprawdzenie po 2-5 sekund
+            setTimeout(checkProducts, 2000 + Math.random() * 3000);
         });
     }
 
@@ -242,37 +294,77 @@ class AllegroContentParser {
         return [];
     }
 
-    parseProducts() {
+    async parseProducts() {
         const productElements = this.findProductElements();
         const products = [];
         
-        productElements.forEach((element, index) => {
+        // Ogranicz do pierwszych 10 produktów - jeszcze mniej żeby nie triggerować anti-bot
+        const limitedElements = productElements.slice(0, 10);
+        
+        console.log(`Parsing ${limitedElements.length} products slowly...`);
+        
+        // POWOLI parsuj produkty z opóźnieniami
+        for (let i = 0; i < limitedElements.length; i++) {
             try {
-                const product = this.parseProductElement(element, index + 1);
+                // Opóźnienie między każdym produktem 500ms-1.5s
+                if (i > 0) {
+                    await this.randomDelay(500, 1500);
+                }
+                
+                const product = this.parseProductElement(limitedElements[i], i + 1);
                 if (product) {
                     products.push(product);
                 }
+                
+                // Co 3 produkty - symuluj scroll
+                if ((i + 1) % 3 === 0) {
+                    await this.simulateHumanScrolling();
+                }
+                
             } catch (error) {
-                console.warn(`Error parsing product at position ${index + 1}:`, error);
+                console.warn(`Error parsing product at position ${i + 1}:`, error);
             }
-        });
+        }
         
+        console.log(`Parsed ${products.length} products successfully`);
         return products;
     }
 
     parseProductElement(element, position) {
-        // Parsuj pojedynczy element produktu
-        const title = this.extractText(element, this.selectors.productTitle);
+        let title = null;
+        let url = null;
+        
+        // Sprawdź czy to link bezpośredni
+        if (element.matches('a[href*="/oferta/"]')) {
+            url = element.href;
+            title = element.textContent || element.innerText;
+        }
+        // Sprawdź czy to H2 z linkiem wewnątrz (Desktop struktura)
+        else if (element.matches('h2')) {
+            const linkElement = element.querySelector('a[href*="/oferta/"]');
+            if (linkElement) {
+                url = linkElement.href;
+                title = linkElement.textContent || linkElement.innerText;
+            }
+        }
+        // Standardowe parsowanie dla innych przypadków
+        else {
+            title = this.extractText(element, this.selectors.productTitle);
+            const linkElement = element.querySelector('a[href*="/oferta/"]');
+            url = linkElement ? linkElement.href : null;
+        }
+        
+        // ODRZUĆ SPONSOROWANE - sprawdź URL
+        if (!url || !url.includes('/oferta/') || url.includes('/events/clicks')) {
+            // console.log('Pomijam sponsorowaną ofertę:', url);
+            return null;
+        }
+        
         const price = this.extractText(element, this.selectors.productPrice);
         const seller = this.extractText(element, this.selectors.sellerName);
-        const sponsored = this.isSponsored(element);
+        const sponsored = false; // Już odfiltrowane wyżej
         
-        // Znajdź link do oferty
-        const linkElement = element.querySelector('a[href*="/oferta/"]') || 
-                          element.closest('a[href*="/oferta/"]');
-        const url = linkElement ? linkElement.href : null;
-        
-        if (!title) {
+        if (!title || title.trim().length === 0) {
             console.warn(`No title found for product at position ${position}`);
             return null;
         }
@@ -310,6 +402,60 @@ class AllegroContentParser {
         return text.includes('promowane') || 
                text.includes('sponsored') || 
                text.includes('reklama');
+    }
+
+    // === HUMAN SIMULATION FUNCTIONS ===
+    
+    async randomDelay(minMs, maxMs) {
+        const delay = minMs + Math.random() * (maxMs - minMs);
+        return new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    async simulateHumanScrolling() {
+        return new Promise((resolve) => {
+            const scrollSteps = 3 + Math.floor(Math.random() * 5); // 3-8 kroków
+            let currentStep = 0;
+            
+            const performScroll = () => {
+                if (currentStep >= scrollSteps) {
+                    resolve();
+                    return;
+                }
+                
+                // Losowe scrollowanie w dół lub górę
+                const scrollAmount = 100 + Math.random() * 300; // 100-400px
+                const scrollDirection = Math.random() > 0.8 ? -1 : 1; // 80% w dół, 20% w górę
+                
+                window.scrollBy({
+                    top: scrollAmount * scrollDirection,
+                    behavior: 'smooth'
+                });
+                
+                currentStep++;
+                // Opóźnienie między scrollami 200-800ms
+                setTimeout(performScroll, 200 + Math.random() * 600);
+            };
+            
+            performScroll();
+        });
+    }
+    
+    simulateMouseMovement() {
+        // Symuluj ruch myszy przez dispatch event
+        const event = new MouseEvent('mousemove', {
+            clientX: Math.random() * window.innerWidth,
+            clientY: Math.random() * window.innerHeight,
+            bubbles: true,
+            cancelable: true
+        });
+        document.dispatchEvent(event);
+    }
+    
+    async simulateHumanPause() {
+        // Losowa pauza jak prawdziwy użytkownik - 2-8 sekund  
+        const pauseTime = 2000 + Math.random() * 6000;
+        console.log(`Human-like pause: ${Math.round(pauseTime/1000)} seconds`);
+        await this.randomDelay(pauseTime, pauseTime);
     }
 
     extractKeywordFromUrl() {
