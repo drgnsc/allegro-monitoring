@@ -1,0 +1,502 @@
+.project-page {
+  max-width: 100%;
+}
+
+/* Sekcje */
+.add-keyword-section,
+.keywords-section,
+.urls-section,
+.csv-import-section {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.add-keyword-section h3,
+.keywords-section h3,
+.urls-section h3 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.keywords-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.refresh-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+/* Formularz dodawania słów kluczowych */
+.keyword-form .form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.add-btn {
+  background: #48bb78;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.add-btn:hover:not(:disabled) {
+  background: #38a169;
+  transform: translateY(-1px);
+}
+
+.add-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Tabela słów kluczowych */
+.keywords-table {
+  margin-top: 1rem;
+}
+
+.keywords-table .table-header {
+  grid-template-columns: 2fr 1fr 2fr 1fr auto;
+  gap: 1rem;
+}
+
+.keywords-table .table-row {
+  grid-template-columns: 2fr 1fr 2fr 1fr auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.keyword-cell {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.match-type-cell {
+  display: flex;
+  justify-content: center;
+}
+
+.match-type-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.match-type-badge.title {
+  background: #bee3f8;
+  color: #2b6cb0;
+}
+
+.match-type-badge.brand {
+  background: #d6f5d6;
+  color: #276749;
+}
+
+.match-type-badge.url {
+  background: #fbb6ce;
+  color: #97266d;
+}
+
+.match-value-cell {
+  color: #4a5568;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date-cell {
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.actions-cell {
+  display: flex;
+  justify-content: center;
+}
+
+.delete-btn {
+  background: #fed7d7;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  background: #feb2b2;
+  transform: scale(1.05);
+}
+
+/* Sekcja URL */
+.urls-section p {
+  color: #718096;
+  margin-bottom: 1rem;
+}
+
+.urls-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.copy-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.export-btn {
+  background: #38a169;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.export-btn:hover {
+  background: #2f855a;
+  transform: translateY(-1px);
+}
+
+.urls-list {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.url-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.url-item:last-child {
+  border-bottom: none;
+}
+
+.url-number {
+  color: #718096;
+  font-weight: 500;
+  min-width: 2rem;
+  text-align: right;
+}
+
+.url-text {
+  background: white;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  color: #2d3748;
+  border: 1px solid #e2e8f0;
+  flex: 1;
+  word-break: break-all;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #718096;
+  background: #f7fafc;
+  border-radius: 8px;
+  border: 2px dashed #e2e8f0;
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+  .keyword-form .form-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .keywords-table .table-header,
+  .keywords-table .table-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .keywords-table .table-header > div,
+  .keywords-table .table-row > div {
+    padding: 0.5rem 0;
+  }
+  
+  .keywords-table .table-header > div::before {
+    content: attr(data-label) ': ';
+    font-weight: 600;
+    display: inline-block;
+    margin-right: 0.5rem;
+  }
+  
+  .match-type-cell {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .urls-actions {
+    flex-direction: column;
+  }
+  
+  .url-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .url-number {
+    min-width: auto;
+    text-align: left;
+  }
+}
+
+/* CSV Import Section */
+.csv-import-section h3 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.csv-import-section p {
+  color: #718096;
+  margin-bottom: 1.5rem;
+}
+
+.csv-format-info {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.csv-format-info h4 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.format-example {
+  margin-bottom: 1rem;
+}
+
+.format-example code {
+  background: #ed8936;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+}
+
+.format-example small {
+  display: block;
+  margin-top: 0.5rem;
+  color: #718096;
+}
+
+.format-example strong {
+  color: #2d3748;
+}
+
+.csv-example {
+  margin-bottom: 1rem;
+}
+
+.csv-example h5 {
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.csv-example pre {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  color: #2d3748;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.template-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.template-btn:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.csv-import-controls {
+  margin-bottom: 1.5rem;
+}
+
+.csv-file-input {
+  display: none;
+}
+
+.csv-file-label {
+  display: inline-block;
+  background: #48bb78;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.csv-file-label:hover:not(.disabled) {
+  background: #38a169;
+  transform: translateY(-1px);
+}
+
+.csv-file-label.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.import-results {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.import-results h4 {
+  color: #22543d;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.import-stats {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.stat {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.stat.success {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.stat.errors {
+  background: #fed7d7;
+  color: #c53030;
+}
+
+.import-errors {
+  margin-top: 1rem;
+}
+
+.import-errors h5 {
+  color: #c53030;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.import-errors ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.import-errors li {
+  background: #fed7d7;
+  color: #c53030;
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+/* Responsive dla CSV import */
+@media (max-width: 640px) {
+  .import-stats {
+    flex-direction: column;
+  }
+  
+  .csv-format-info {
+    padding: 1rem;
+  }
+} 

@@ -6,6 +6,7 @@ class AllegroContentParser {
         this.isActive = false;
         this.isScanning = false;
         this.autoScanEnabled = false;
+        this.positionLimit = 10; // Domyślnie 10 pozycji
         this.currentUrl = window.location.href;
         this.lastScanData = null;
         this.lastScanTime = 0; // Timestamp ostatniego skanu - zapobieganie zbyt częstemu skanowaniu
@@ -19,7 +20,12 @@ class AllegroContentParser {
                 'article[data-analytics-view-custom-index]',
                 'div[data-testid="listing-item"]',
                 'article[data-role="offer"]',
-                'div[data-role="offer"]'
+                'div[data-role="offer"]',
+                'div[data-testid="listing-item-container"]',
+                'div[class*="listing-item"]',
+                'div[class*="offer-item"]',
+                'section[data-testid="listing-item"]',
+                'div[data-analytics-view-value]'
             ],
             productTitle: [
                 // Tytuł jest bezpośrednio w linku
@@ -30,16 +36,55 @@ class AllegroContentParser {
                 '.offer-title'
             ],
             productPrice: [
+                // Nowe selektory bazowane na przykładzie użytkownika
+                'span[class*="mli8_k4"]',                          // Główny kontener ceny
+                'span[class*="msa3_z4"]',                          // Alternatywny kontener
+                'span[class*="m9qz_yo"]',                          // Jeszcze jeden kontener
+                'span[class*="mgmw_qw"]',                          // I kolejny
+                'span:has(span[class*="mgn2_19"]):has(span[class*="m9qz_yq"])',  // Span zawierający grosze i "zł"
+                'span[class*="mgn2_27"]',                          // Kolejne klasy z przykładu
+                'span[class*="mgn2_30"]',                          // Jeszcze jedna z przykładu
+                // Oryginalne selektory
                 'span[data-testid="price"]',
+                'span[data-price-currency]',
                 '.price',
                 '.offer-price',
-                'span[class*="price"]'
+                'span[class*="price"]',
+                'span[class*="Price"]',
+                'div[data-testid="price-container"] span',
+                '[data-testid="price-value"]',
+                'span[aria-label*="Cena"]',
+                'span[aria-label*="zł"]'
             ],
             sellerName: [
+                // Nowe selektory bazowane na przykładzie użytkownika
+                'a[href*="/uzytkownik/"][class*="mgmw_wo"]',        // Główny selektor sprzedawcy z Allegro
+                'a[href*="/uzytkownik/"][class*="mli8_k4"]',        // Alternatywny selektor
+                'a[href*="/uzytkownik/"][class*="mqen_m6"]',        // Kolejny selektor
+                // Oryginalne selektory
+                'a[href*="/uzytkownik/"]',
                 'span[data-testid="seller-name"]',
                 '.seller-name',
                 'a[data-testid="seller-link"]',
-                '[data-testid="seller-info"] a'
+                '[data-testid="seller-info"] a',
+                'span[class*="seller"]',
+                'span[class*="Seller"]',
+                'div[data-testid="seller"] span',
+                'div[data-testid="seller"] a',
+                '.seller a',
+                'span[aria-label*="Sprzedawca"]'
+            ],
+            brandName: [
+                // Selektory dla producenta/marki bazowane na przykładzie użytkownika
+                'span[class*="mgmw_wo"][class*="mvrt_8"]',          // Główny selektor marki z Allegro
+                'span[class*="mgmw_wo"]:not([class*="mli8_k4"])',  // Span z mgmw_wo ale bez mli8_k4 (bo to cena)
+                // Ogólne selektory marki
+                'span[data-testid="brand"]',
+                'span[data-testid="manufacturer"]',
+                '.brand',
+                '.manufacturer',
+                'span[class*="brand"]',
+                'span[class*="Brand"]'
             ],
             sponsoredIndicator: [
                 '[data-testid="sponsored-badge"]',
@@ -61,7 +106,7 @@ class AllegroContentParser {
             this.isActive = true;
             console.log('Allegro listing page detected');
             
-            // Załaduj ustawienia
+            // Załaduj ustawienia ZAWSZE na początku
             await this.loadSettings();
             
             // Nasłuchuj wiadomości z popup
@@ -78,6 +123,12 @@ class AllegroContentParser {
             
             // Nasłuchuj zmian URL (SPA navigation)
             this.setupUrlChangeListener();
+            
+            // WYMUSZENIE: Przeładuj ustawienia po 2 sekundach (na wypadek gdy storage nie był gotowy)
+            setTimeout(async () => {
+                await this.loadSettings();
+                console.log(`FORCED RELOAD: Position limit is now: ${this.positionLimit}`);
+            }, 2000);
         }
     }
 
@@ -89,8 +140,10 @@ class AllegroContentParser {
 
     async loadSettings() {
         try {
-            const result = await chrome.storage.local.get(['autoScanEnabled']);
+            const result = await chrome.storage.local.get(['autoScanEnabled', 'positionLimit']);
             this.autoScanEnabled = result.autoScanEnabled || false;
+            this.positionLimit = result.positionLimit || 10;
+            console.log(`Settings loaded: autoScan=${this.autoScanEnabled}, positionLimit=${this.positionLimit}`);
         } catch (error) {
             console.error('Error loading settings:', error);
         }
@@ -110,6 +163,19 @@ class AllegroContentParser {
                         url: window.location.href,
                         keyword: this.extractKeywordFromUrl()
                     });
+                    break;
+                
+                case 'updateSettings':
+                    if (message.settings) {
+                        if (typeof message.settings.positionLimit === 'number') {
+                            this.positionLimit = message.settings.positionLimit;
+                            console.log(`Position limit updated to: ${this.positionLimit}`);
+                        }
+                        if (typeof message.settings.autoScanEnabled === 'boolean') {
+                            this.autoScanEnabled = message.settings.autoScanEnabled;
+                        }
+                    }
+                    sendResponse({ success: true });
                     break;
                     
                 default:
@@ -217,7 +283,18 @@ class AllegroContentParser {
             });
 
             if (!saveResult.success) {
-                throw new Error(saveResult.error || 'Błąd zapisywania danych');
+                // Improved error handling with more specific messages
+                let errorMessage = saveResult.error || 'Błąd zapisywania danych';
+                
+                if (errorMessage.includes('collection')) {
+                    errorMessage = 'Błąd bazy danych: Sprawdź czy PocketBase jest uruchomiony i kolekcje są utworzone. Odśwież rozszerzenie i spróbuj ponownie.';
+                } else if (errorMessage.includes('auth') || errorMessage.includes('login')) {
+                    errorMessage = 'Sesja wygasła. Otwórz popup rozszerzenia i zaloguj się ponownie.';
+                } else if (errorMessage.includes('fetch') || errorMessage.includes('połączenia')) {
+                    errorMessage = 'Błąd połączenia z serwerem. Sprawdź czy PocketBase jest uruchomiony na localhost:8090.';
+                }
+                
+                throw new Error(errorMessage);
             }
 
             this.lastScanData = scanData;
@@ -281,34 +358,83 @@ class AllegroContentParser {
     }
 
     findProductElements() {
-        // Spróbuj różnych selektorów
-        for (const selector of this.selectors.productContainers) {
-            const elements = document.querySelectorAll(selector);
+        const elements = [];
+        
+        // Pierwsza strategia: znajdź H2 i idź do kontenera produktu
+        const h2Elements = document.querySelectorAll('h2:has(a[href*="/oferta/"]:not([href*="/events/clicks"]))');
+        console.log(`Found ${h2Elements.length} H2 elements with product links`);
+        
+        if (h2Elements.length > 0) {
+            // Dla każdego H2, znajdź jego kontener produktu (rodzica)
+            h2Elements.forEach(h2 => {
+                // Sprawdź różne poziomy rodziców aż znajdziesz kontener z cenami
+                let container = h2;
+                let level = 0;
+                const maxLevels = 5;
+                
+                while (container && level < maxLevels) {
+                    // Sprawdź czy ten kontener ma cenę
+                    const hasPrice = container.querySelector('span[class*="mli8_k4"], span[class*="msa3_z4"], span[class*="m9qz_yo"], span[class*="mgmw_qw"]');
+                    
+                    if (hasPrice && container !== h2) {
+                        elements.push(container);
+                        return; // Znaleziono kontener z ceną
+                    }
+                    
+                    container = container.parentElement;
+                    level++;
+                }
+                
+                // Fallback: użyj rodzica 3 poziomy wyżej
+                const fallbackContainer = h2.parentElement?.parentElement?.parentElement;
+                if (fallbackContainer && !elements.includes(fallbackContainer)) {
+                    elements.push(fallbackContainer);
+                }
+            });
+            
+            console.log(`Found ${elements.length} product containers from H2 elements`);
             if (elements.length > 0) {
-                console.log(`Found ${elements.length} products using selector: ${selector}`);
-                return Array.from(elements);
+                return elements;
+            }
+        }
+        
+        // Fallback: użyj oryginalnych selektorów
+        for (const selector of this.selectors.productContainers) {
+            const found = document.querySelectorAll(selector);
+            console.log(`Found ${found.length} products using selector: ${selector}`);
+            
+            if (found.length > 0) {
+                elements.push(...found);
+                break;
             }
         }
         
         console.log('No products found with any selector');
-        return [];
+        return elements;
     }
 
     async parseProducts() {
         const productElements = this.findProductElements();
         const products = [];
         
-        // Ogranicz do pierwszych 10 produktów - jeszcze mniej żeby nie triggerować anti-bot
-        const limitedElements = productElements.slice(0, 10);
+        // Użyj positionLimit zamiast stałej wartości 10
+        const limitedElements = productElements.slice(0, this.positionLimit);
         
-        console.log(`Parsing ${limitedElements.length} products slowly...`);
+        console.log(`Parsing ${limitedElements.length} products slowly (limit: ${this.positionLimit})...`);
+        
+        // Oblicz opóźnienia bazowane na liczbie pozycji
+        const delayMultiplier = this.calculateDelayMultiplier(this.positionLimit);
+        const baseMinDelay = 500;
+        const baseMaxDelay = 1500;
         
         // POWOLI parsuj produkty z opóźnieniami
         for (let i = 0; i < limitedElements.length; i++) {
             try {
-                // Opóźnienie między każdym produktem 500ms-1.5s
+                // Skalowane opóźnienie między każdym produktem
                 if (i > 0) {
-                    await this.randomDelay(500, 1500);
+                    const minDelay = baseMinDelay * delayMultiplier;
+                    const maxDelay = baseMaxDelay * delayMultiplier;
+                    await this.randomDelay(minDelay, maxDelay);
                 }
                 
                 const product = this.parseProductElement(limitedElements[i], i + 1);
@@ -316,9 +442,18 @@ class AllegroContentParser {
                     products.push(product);
                 }
                 
-                // Co 3 produkty - symuluj scroll
-                if ((i + 1) % 3 === 0) {
+                // Skalowane scrollowanie - więcej dla większych limitów
+                const scrollFrequency = this.positionLimit <= 10 ? 3 : 
+                                      this.positionLimit <= 20 ? 2 : 1;
+                
+                if ((i + 1) % scrollFrequency === 0) {
                     await this.simulateHumanScrolling();
+                }
+                
+                // Dodatkowe pauzy dla większych limitów
+                if (this.positionLimit > 20 && (i + 1) % 10 === 0) {
+                    console.log(`Extra pause after ${i + 1} products...`);
+                    await this.simulateHumanPause();
                 }
                 
             } catch (error) {
@@ -328,6 +463,19 @@ class AllegroContentParser {
         
         console.log(`Parsed ${products.length} products successfully`);
         return products;
+    }
+
+    calculateDelayMultiplier(positionLimit) {
+        // Skaluj opóźnienia bazując na liczbie pozycji
+        if (positionLimit <= 10) {
+            return 1.0; // Normalne opóźnienia
+        } else if (positionLimit <= 20) {
+            return 1.5; // +50% opóźnień
+        } else if (positionLimit <= 30) {
+            return 2.0; // +100% opóźnień
+        } else {
+            return 2.5; // +150% opóźnień
+        }
     }
 
     parseProductElement(element, position) {
@@ -360,9 +508,37 @@ class AllegroContentParser {
             return null;
         }
         
-        const price = this.extractText(element, this.selectors.productPrice);
-        const seller = this.extractText(element, this.selectors.sellerName);
+        const price = this.extractPrice(element);
+        const seller = this.extractSeller(element);
+        const brand = this.extractBrand(element);
+        const rating = this.extractRating(element);
         const sponsored = false; // Już odfiltrowane wyżej
+        
+        // DEBUG: Log selectors that work/don't work
+        if (!price) {
+            console.log(`No price found for position ${position}. Element:`, element);
+            console.log('Available price-related elements:');
+            element.querySelectorAll('*').forEach(el => {
+                if (el.textContent && (el.textContent.includes('zł') || el.textContent.includes(',') && /\d/.test(el.textContent))) {
+                    console.log('  Potential price element:', el.tagName, el.className, el.textContent.trim());
+                }
+            });
+        }
+        
+        if (!seller) {
+            console.log(`No seller found for position ${position}. Element:`, element);
+            console.log('Available link elements:', element.querySelectorAll('a'));
+        }
+        
+        if (!brand) {
+            console.log(`No brand found for position ${position}. Element:`, element);
+            console.log('Available brand-related elements:');
+            element.querySelectorAll('span').forEach(el => {
+                if (el.textContent && el.textContent.trim().length > 1 && el.textContent.trim().length < 50) {
+                    console.log('  Potential brand element:', el.tagName, el.className, el.textContent.trim());
+                }
+            });
+        }
         
         if (!title || title.trim().length === 0) {
             console.warn(`No title found for product at position ${position}`);
@@ -374,6 +550,8 @@ class AllegroContentParser {
             title: title.trim(),
             price: price ? price.trim() : null,
             seller: seller ? seller.trim() : null,
+            brand: brand ? brand.trim() : null,
+            rating: rating ? rating.trim() : null,
             sponsored: sponsored,
             url: url
         };
@@ -386,6 +564,139 @@ class AllegroContentParser {
                 return target.textContent || target.innerText || '';
             }
         }
+        return null;
+    }
+
+    extractPrice(element) {
+        // Specjalna funkcja do parsowania ceny Allegro
+        const priceSelectors = this.selectors.productPrice;
+        
+        for (const selector of priceSelectors) {
+            const target = element.querySelector(selector);
+            if (target) {
+                let priceText = target.textContent || target.innerText || '';
+                
+                // Czyść cenę z niepotrzebnych znaków i spacji
+                priceText = priceText.replace(/\s+/g, ' ').trim();
+                
+                // Sprawdź czy zawiera "zł" lub ma format ceny
+                if (priceText.includes('zł') || /\d+[,\.]\d+/.test(priceText)) {
+                    console.log(`Found price with selector "${selector}": "${priceText}"`);
+                    return priceText;
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    extractBrand(element) {
+        // Specjalna funkcja do parsowania marki/producenta
+        const brandSelectors = this.selectors.brandName;
+        
+        for (const selector of brandSelectors) {
+            const target = element.querySelector(selector);
+            if (target) {
+                let brandText = target.textContent || target.innerText || '';
+                brandText = brandText.trim();
+                
+                // Sprawdź czy to prawdopodobnie marka (nie jest to cena, objętość, rating lub długi tekst)
+                if (brandText && 
+                    !brandText.includes('zł') && 
+                    !brandText.includes('%') && 
+                    !brandText.includes('ml') &&        // Wyklucz objętości
+                    !brandText.includes('l') &&         // Wyklucz litry  
+                    !brandText.includes('g') &&         // Wyklucz gramy
+                    !brandText.includes('kg') &&        // Wyklucz kilogramy
+                    !/^\d+$/.test(brandText) &&         // Wyklucz same cyfry
+                    !/^\d+[,\.]\d+$/.test(brandText) && // Wyklucz ratingi jak "4,85", "4,63"
+                    !/^\d+[\s,\.]\d*\s*(ml|l|g|kg)$/i.test(brandText) && // Wyklucz "500 ml", "1,5 l" etc.
+                    !brandText.match(/^[0-9,\.]+$/) &&  // Wyklucz strings składające się tylko z cyfr i przecinków
+                    brandText.length > 1 && 
+                    brandText.length < 50 &&
+                    isNaN(parseFloat(brandText.replace(',', '.')))) { // Wyklucz wszystko co można sparsować jako liczba
+                    console.log(`Found brand with selector "${selector}": "${brandText}"`);
+                    return brandText;
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    extractRating(element) {
+        // Specjalna funkcja do parsowania ratingu/oceny produktu
+        const ratingSelectors = [
+            // Użyj tych samych selektorów co dla marki, ale filtruj tylko ratingi
+            'span[class*="mgmw_wo"][class*="mvrt_8"]',
+            'span[class*="mgmw_wo"]:not([class*="mli8_k4"])',
+            // Dodatkowe selektory dla ratingów
+            'span[class*="rating"]',
+            'span[class*="score"]',
+            'span[aria-label*="ocena"]',
+            'span[title*="ocena"]'
+        ];
+        
+        for (const selector of ratingSelectors) {
+            const target = element.querySelector(selector);
+            if (target) {
+                let ratingText = target.textContent || target.innerText || '';
+                ratingText = ratingText.trim();
+                
+                // Sprawdź czy to prawdopodobnie rating (liczba z przecinkiem między 1-5)
+                if (ratingText && 
+                    /^\d[,\.]\d+$/.test(ratingText) &&  // Format "4,85", "4.85"
+                    !ratingText.includes('zł') &&
+                    !ratingText.includes('ml') &&
+                    !ratingText.includes('g')) {
+                    
+                    const ratingValue = parseFloat(ratingText.replace(',', '.'));
+                    if (ratingValue >= 1 && ratingValue <= 5) {
+                        console.log(`Found rating with selector "${selector}": "${ratingText}"`);
+                        return ratingText;
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    extractSeller(element) {
+        // Specjalna funkcja do parsowania sprzedawcy
+        const sellerSelectors = this.selectors.sellerName;
+        
+        for (const selector of sellerSelectors) {
+            const target = element.querySelector(selector);
+            if (target) {
+                let sellerText = target.textContent || target.innerText || '';
+                sellerText = sellerText.trim();
+                
+                // Wyczyść rating z nazwy sprzedawcy (np. "OPERUM - 99,4%" -> "OPERUM")
+                sellerText = sellerText.replace(/\s*-\s*\d+[,\.]\d*%.*$/, '');
+                sellerText = sellerText.replace(/\s*\(\d+\).*$/, ''); // Usuń (liczba) na końcu
+                
+                if (sellerText && sellerText.length > 1) {
+                    console.log(`Found seller with selector "${selector}": "${sellerText}"`);
+                    return sellerText;
+                }
+            }
+        }
+        
+        // Fallback: sprawdź wszystkie linki w kontenerze
+        const allLinks = element.querySelectorAll('a');
+        for (const link of allLinks) {
+            const href = link.href;
+            const text = link.textContent?.trim();
+            
+            // Sprawdź czy to link do sprzedawcy
+            if (href && href.includes('/uzytkownik/') && text && text.length > 1) {
+                let sellerText = text.replace(/\s*-\s*\d+[,\.]\d*%.*$/, '');
+                console.log(`Found seller via fallback: "${sellerText}"`);
+                return sellerText;
+            }
+        }
+        
         return null;
     }
 

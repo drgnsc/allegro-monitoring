@@ -1,0 +1,85 @@
+[
+  {
+    "name": "projects",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "name": "name",
+        "type": "text",
+        "required": true,
+        "options": {
+          "min": 1,
+          "max": 255
+        }
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "required": false,
+        "options": {
+          "min": 0,
+          "max": 1000
+        }
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "required": false,
+        "options": {}
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != \"\"",
+    "viewRule": "@request.auth.id != \"\"",
+    "createRule": "@request.auth.id != \"\"",
+    "updateRule": "@request.auth.id != \"\"",
+    "deleteRule": "@request.auth.id != \"\""
+  },
+  {
+    "name": "keywords",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "name": "keyword",
+        "type": "text",
+        "required": true,
+        "options": {
+          "min": 1,
+          "max": 500
+        }
+      },
+      {
+        "name": "matchType",
+        "type": "select",
+        "required": true,
+        "options": {
+          "maxSelect": 1,
+          "values": ["url", "title", "brand"]
+        }
+      },
+      {
+        "name": "matchValue",
+        "type": "text",
+        "required": true,
+        "options": {
+          "min": 1,
+          "max": 1000
+        }
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "required": false,
+        "options": {}
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != \"\"",
+    "viewRule": "@request.auth.id != \"\"",
+    "createRule": "@request.auth.id != \"\"",
+    "updateRule": "@request.auth.id != \"\"",
+    "deleteRule": "@request.auth.id != \"\""
+  }
+] 

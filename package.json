@@ -1,0 +1,49 @@
+{
+  "name": "allegro-position-monitor",
+  "version": "1.0.0",
+  "description": "Kompletny system monitoringu pozycji produktów na Allegro.pl",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:dashboard\"",
+    "dev:backend": "cd backend && ./pocketbase.exe serve --dev",
+    "dev:dashboard": "cd web-dashboard && npm run dev",
+    "build": "npm run build:dashboard",
+    "build:dashboard": "cd web-dashboard && npm run build",
+    "package:extension": "node scripts/package-extension.js",
+    "package:extension:win": "./scripts/package-extension.bat",
+    "package:extension:linux": "./scripts/package-extension.sh",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "deploy:check": "node scripts/deploy-check.js",
+    "setup": "npm run setup:dashboard",
+    "setup:dashboard": "cd web-dashboard && npm install",
+    "test": "echo \"No tests yet\" && exit 0",
+    "clean": "npm run clean:dashboard && npm run clean:docker",
+    "clean:dashboard": "cd web-dashboard && rm -rf dist node_modules",
+    "clean:docker": "docker-compose down -v --remove-orphans"
+  },
+  "keywords": [
+    "allegro",
+    "position-monitoring", 
+    "chrome-extension",
+    "e-commerce",
+    "seo-tools"
+  ],
+  "author": "Allegro Monitoring Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/drgnsc/allegro-monitoring.git"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "workspaces": [
+    "web-dashboard"
+  ]
+} 

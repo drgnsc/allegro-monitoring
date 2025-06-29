@@ -8,79 +8,122 @@
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <h1>Allegro Monitor</h1>
-            <div class="status" id="connectionStatus">
-                <span class="status-dot offline"></span>
-                <span class="status-text">Rozłączony</span>
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <span class="icon">🎯</span>
+                <h1>Allegro Monitor</h1>
             </div>
-        </header>
+            <div class="status" id="status">
+                <span class="status-indicator" id="statusIndicator">⚪</span>
+                <span id="statusText">Sprawdzanie...</span>
+            </div>
+        </div>
 
         <!-- Login Form -->
         <div id="loginSection" class="section">
-            <h2>Logowanie</h2>
+            <h2>🔐 Logowanie</h2>
             <form id="loginForm">
                 <div class="form-group">
+                    <label for="serverUrl">Server URL:</label>
+                    <input type="text" id="serverUrl" value="http://localhost:8090" required>
+                </div>
+                <div class="form-group">
                     <label for="email">Email:</label>
-                    <input type="email" id="email" name="email" required>
+                    <input type="email" id="email" placeholder="twoj@email.com" required>
                 </div>
                 <div class="form-group">
                     <label for="password">Hasło:</label>
-                    <input type="password" id="password" name="password" required>
+                    <input type="password" id="password" placeholder="********" required>
                 </div>
-                <button type="submit" class="btn btn-primary">Zaloguj się</button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-icon">🔓</span>
+                    Zaloguj się
+                </button>
             </form>
             <div id="loginError" class="error hidden"></div>
         </div>
 
         <!-- Main Interface -->
         <div id="mainSection" class="section hidden">
-            <div class="user-info">
-                <span>Zalogowany jako: <strong id="userEmail"></strong></span>
-                <button id="logoutBtn" class="btn btn-link">Wyloguj</button>
+            <!-- LOGOUT BUTTON -->
+            <div class="logout-section">
+                <button type="button" id="logoutBtn" class="btn btn-outline">
+                    <span class="btn-icon">🚪</span>
+                    Wyloguj
+                </button>
             </div>
 
             <div class="scan-section">
-                <h3>Skanowanie pozycji</h3>
-                <div class="scan-status" id="scanStatus">
-                    <span>Status: <span id="scanStatusText">Gotowy</span></span>
+                <h3>🎯 Skan Pojedynczy</h3>
+                <div class="form-group">
+                    <label for="positionLimit">Liczba pozycji do sprawdzenia:</label>
+                    <input 
+                        type="number" 
+                        id="positionLimit" 
+                        min="1" 
+                        max="50" 
+                        value="10"
+                        title="1-50 pozycji (domyślnie: 10)"
+                    >
+                    <small class="field-hint">1-50 pozycji (więcej = dłuższy czas skanowania)</small>
                 </div>
-                
-                <div class="scan-controls">
-                    <button id="manualScanBtn" class="btn btn-secondary">
-                        <span class="btn-icon">🔍</span>
-                        Skanuj teraz
-                    </button>
-                    
-                    <div class="auto-scan-toggle">
-                        <label class="switch">
-                            <input type="checkbox" id="autoScanToggle">
-                            <span class="slider round"></span>
-                        </label>
-                        <span>Auto-skan</span>
-                    </div>
-                </div>
-
-                <div class="recent-scans">
-                    <h4>Ostatnie skany</h4>
-                    <div id="recentScansList" class="scans-list">
-                        <!-- Recent scans will be populated here -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="actions">
-                <button id="openDashboardBtn" class="btn btn-primary">
+                <button id="scanBtn" class="btn btn-success">
                     <span class="btn-icon">📊</span>
-                    Otwórz Dashboard
+                    Skanuj Pozycje
                 </button>
+                <p class="scan-info">Skanuje aktualną stronę (czas: <span id="estimatedTime">60-90s</span>)</p>
             </div>
+
+            <div class="scan-section">
+                <h3>📋 System Kolejkowania</h3>
+                <div class="form-group">
+                    <label for="urlQueue">Lista URL-i do skanowania:</label>
+                    <textarea 
+                        id="urlQueue" 
+                        placeholder="Wklej URL-e Allegro, każdy w nowej linii:&#10;https://allegro.pl/listing?string=wosk+ceramiczny&#10;https://allegro.pl/listing?string=pasta+polerująca&#10;https://allegro.pl/kategoria/motoryzacja"
+                        rows="4"
+                    ></textarea>
+                </div>
+                <div class="queue-controls">
+                    <button id="startQueueBtn" class="btn btn-primary">
+                        <span class="btn-icon">🚀</span>
+                        Start Kolejki
+                    </button>
+                    <button id="stopQueueBtn" class="btn btn-danger hidden">
+                        <span class="btn-icon">⏹️</span>
+                        Stop Kolejki
+                    </button>
+                    <button id="clearQueueBtn" class="btn btn-secondary">
+                        <span class="btn-icon">🗑️</span>
+                        Wyczyść
+                    </button>
+                </div>
+                <div class="queue-status" id="queueStatus">
+                    <p><strong>Status:</strong> <span id="queueStatusText">Gotowa</span></p>
+                    <p><strong>Postęp:</strong> <span id="queueProgress">0/0</span></p>
+                    <p><strong>Aktualny URL:</strong> <span id="currentUrl">-</span></p>
+                </div>
+            </div>
+
+            <div class="scan-section">
+                <h3>🔄 Auto-Scan</h3>
+                <label class="toggle-container">
+                    <input type="checkbox" id="autoScanToggle">
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">Automatyczne skanowanie</span>
+                </label>
+                <p class="scan-info">Skanuje nowe strony automatycznie</p>
+            </div>
+
+            <!-- Results -->
+            <div class="results" id="results"></div>
         </div>
 
         <!-- Loading -->
-        <div id="loadingSection" class="section hidden">
-            <div class="loading-spinner"></div>
-            <p>Ładowanie...</p>
+        <div class="loading hidden" id="loading">
+            <div class="spinner"></div>
+            <p id="loadingText">Przetwarzanie...</p>
         </div>
     </div>
 

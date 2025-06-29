@@ -1,7 +1,6 @@
 {
   "collections": [
     {
-      "id": "users",
       "name": "users",
       "type": "auth",
       "system": false,
@@ -31,7 +30,6 @@
       }
     },
     {
-      "id": "positions",
       "name": "positions", 
       "type": "base",
       "system": false,
@@ -91,6 +89,239 @@
       ],
       "listRule": "userId = @request.auth.id",
       "viewRule": "userId = @request.auth.id", 
+      "createRule": "@request.auth.id != \"\"",
+      "updateRule": "userId = @request.auth.id",
+      "deleteRule": "userId = @request.auth.id"
+    },
+    {
+      "name": "projects",
+      "type": "base",
+      "system": false,
+      "schema": [
+        {
+          "name": "userId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "users",
+            "cascadeDelete": true,
+            "minSelect": 1,
+            "maxSelect": 1
+          }
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 255
+          }
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "options": {
+            "min": 0,
+            "max": 1000
+          }
+        },
+        {
+          "name": "created",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "active",
+          "type": "bool",
+          "required": false,
+          "options": {}
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_projects_userId ON projects (userId)"
+      ],
+      "listRule": "userId = @request.auth.id",
+      "viewRule": "userId = @request.auth.id",
+      "createRule": "@request.auth.id != \"\"",
+      "updateRule": "userId = @request.auth.id",
+      "deleteRule": "userId = @request.auth.id"
+    },
+    {
+      "name": "keywords",
+      "type": "base",
+      "system": false,
+      "schema": [
+        {
+          "name": "userId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "users",
+            "cascadeDelete": true,
+            "minSelect": 1,
+            "maxSelect": 1
+          }
+        },
+        {
+          "name": "projectId",
+          "type": "relation",
+          "required": false,
+          "options": {
+            "collectionId": "projects",
+            "cascadeDelete": true,
+            "minSelect": 0,
+            "maxSelect": 1
+          }
+        },
+        {
+          "name": "keyword",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 500
+          }
+        },
+        {
+          "name": "matchType",
+          "type": "select",
+          "required": true,
+          "options": {
+            "maxSelect": 1,
+            "values": ["url", "title", "brand"]
+          }
+        },
+        {
+          "name": "matchValue",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 1000
+          }
+        },
+        {
+          "name": "active",
+          "type": "bool",
+          "required": false,
+          "options": {}
+        },
+        {
+          "name": "created",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_keywords_userId ON keywords (userId)",
+        "CREATE INDEX idx_keywords_keyword ON keywords (keyword)",
+        "CREATE INDEX idx_keywords_projectId ON keywords (projectId)"
+      ],
+      "listRule": "userId = @request.auth.id",
+      "viewRule": "userId = @request.auth.id",
+      "createRule": "@request.auth.id != \"\"",
+      "updateRule": "userId = @request.auth.id",
+      "deleteRule": "userId = @request.auth.id"
+    },
+    {
+      "name": "monitoring_results",
+      "type": "base",
+      "system": false,
+      "schema": [
+        {
+          "name": "userId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "users",
+            "cascadeDelete": true,
+            "minSelect": 1,
+            "maxSelect": 1
+          }
+        },
+        {
+          "name": "keywordId",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "keywords",
+            "cascadeDelete": true,
+            "minSelect": 1,
+            "maxSelect": 1
+          }
+        },
+        {
+          "name": "keyword",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 500
+          }
+        },
+        {
+          "name": "matchType",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 50
+          }
+        },
+        {
+          "name": "matchValue",
+          "type": "text",
+          "required": true,
+          "options": {
+            "min": 1,
+            "max": 1000
+          }
+        },
+        {
+          "name": "foundTitle",
+          "type": "text",
+          "required": false,
+          "options": {
+            "min": 0,
+            "max": 1000
+          }
+        },
+        {
+          "name": "position",
+          "type": "number",
+          "required": false,
+          "options": {
+            "min": -1,
+            "max": 9999
+          }
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "timestamp",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "found",
+          "type": "bool",
+          "required": true,
+          "options": {}
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_results_userId_date ON monitoring_results (userId, date)",
+        "CREATE INDEX idx_results_keyword ON monitoring_results (keyword)",
+        "CREATE INDEX idx_results_keywordId ON monitoring_results (keywordId)",
+        "CREATE INDEX idx_results_timestamp ON monitoring_results (timestamp DESC)"
+      ],
+      "listRule": "userId = @request.auth.id",
+      "viewRule": "userId = @request.auth.id",
       "createRule": "@request.auth.id != \"\"",
       "updateRule": "userId = @request.auth.id",
       "deleteRule": "userId = @request.auth.id"

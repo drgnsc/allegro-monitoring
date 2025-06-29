@@ -1,111 +1,155 @@
-# Allegro Position Monitor
+# 🔍 Allegro Position Monitor
 
-Wtyczka Chrome do monitorowania pozycji produktów na Allegro.pl z dashboardem webowym.
+**Kompletny system monitoringu pozycji produktów na Allegro.pl**
 
 ## 📋 Opis projektu
 
-Allegro Position Monitor to rozwiązanie składające się z:
-- **Chrome Extension** - automatyczne wykrywanie i parsowanie pozycji produktów na Allegro
-- **Web Dashboard** - interfejs do przeglądania, analizowania i eksportowania danych
-- **Backend API** - PocketBase do przechowywania danych i zarządzania użytkownikami
+System składa się z trzech komponentów:
+- **Chrome Extension** - automatyczne zbieranie danych o pozycjach produktów
+- **PocketBase Backend** - baza danych i API
+- **Web Dashboard** - panel zarządzania i analiza danych
 
-## 🚀 Status implementacji
+## ✨ Funkcje
 
-### ✅ Faza 0: Setup & Przygotowanie (UKOŃCZONE)
-- [x] Struktura folderów projektu
-- [x] Inicjalizacja Git repository
-- [x] Manifest.json Chrome Extension
-- [x] Podstawowy interfejs popup (HTML/CSS/JS)
-- [x] Content script do parsowania Allegro
-- [x] Background script do komunikacji z PocketBase
-- [x] Konfiguracja gitignore
+### 🔌 Chrome Extension
+- Automatyczne sprawdzanie pozycji produktów na Allegro
+- Queue system dla wielu URL jednocześnie
+- Rozpoznawanie produktów sponsorowanych
+- Eksport danych do bazy
 
-### 🔄 Faza 1: Core Extension Development (W TRAKCIE)
-- [x] Instrukcje setup PocketBase
-- [x] Konfiguracja collections schema
-- [x] Dokumentacja testowania extension
-- [ ] Instalacja i uruchomienie PocketBase
-- [ ] Testowanie extension w Chrome Developer Mode
-- [ ] Debugging i optymalizacja parsowania
+### 📊 Web Dashboard  
+- **Projekt** - masowy import słów kluczowych z CSV
+- **Reports** - analiza zebranych danych z eksportem CSV
+- **Latest Results** - przeglądanie najnowszych wyników
+- System cache dla wydajności
 
-### ⏳ Faza 2: Web Dashboard Development (PLANOWANE)
-- [ ] Interfejs logowania
-- [ ] Dashboard do przeglądania danych
-- [ ] System wyszukiwania i filtrowania
-- [ ] Eksport CSV z analizą trendów
+### 🛠️ PocketBase Backend
+- Lightweight SQLite database
+- REST API
+- Autoryzacja użytkowników
+- Real-time updates
 
-### ⏳ Faza 3: Deployment & Integration (PLANOWANE)
-- [ ] Deployment PocketBase na Railway
-- [ ] Deployment dashboard na Vercel
-- [ ] Konfiguracja produkcyjna
-- [ ] Testy end-to-end
+## 🚀 Instalacja
 
-## 🛠️ Technologie
+### 1. Backend (PocketBase)
 
-- **Chrome Extension**: Vanilla JavaScript, Manifest V3
-- **Backend**: PocketBase (SQLite + REST API)
-- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Hosting**: Railway.app (backend), Vercel (dashboard)
-- **IDE**: Cursor
+```bash
+cd backend
+# Windows:
+.\pocketbase.exe serve --dev
+# Linux/Mac:
+./pocketbase serve --dev
+```
+
+Backend dostępny na: http://localhost:8090
+
+### 2. Web Dashboard
+
+```bash
+cd web-dashboard
+npm install
+npm run dev
+```
+
+Dashboard dostępny na: http://localhost:3001
+
+### 3. Chrome Extension
+
+1. Otwórz Chrome → Extensions → Developer mode
+2. Kliknij "Load unpacked"
+3. Wybierz folder `chrome-extension/`
+4. Extension zostanie załadowane
 
 ## 📁 Struktura projektu
 
 ```
-allegro-monitor/
-├── chrome-extension/          # Wtyczka Chrome
-│   ├── manifest.json         # Konfiguracja extension
-│   ├── popup.html/css/js     # Interfejs popup
-│   ├── content.js            # Parser stron Allegro
-│   ├── background.js         # Service worker
-│   └── icons/                # Ikonki wtyczki
-├── web-dashboard/            # Dashboard webowy
-├── backend/                  # Konfiguracja PocketBase
-├── docs/                     # Dokumentacja
-└── README.md                 # Ten plik
+allegro-monitoring/
+├── chrome-extension/     # Wtyczka Chrome
+├── backend/             # PocketBase + schema
+├── web-dashboard/       # React dashboard
+├── docs/               # Dokumentacja
+└── README.md
 ```
 
-## 🎯 Następne kroki (Faza 1)
+## 🎯 Workflow użytkowania
 
-1. **Setup PocketBase**
-   - Pobierz PocketBase z: https://github.com/pocketbase/pocketbase/releases/v0.28.3
-   - Rozpakuj do `/backend/`
-   - Uruchom: `./pocketbase serve`
-   - Skonfiguruj collections według `/backend/collections-schema.json`
+1. **Przygotuj słowa kluczowe:**
+   - Dashboard → Projekt → Import CSV
+   - Format: `słowo_kluczowe,typ_dopasowania,wartość`
 
-2. **Test Chrome Extension**
-   - Załaduj extension w Chrome Developer Mode (`chrome://extensions/`)
-   - Wybierz folder `/chrome-extension/`
-   - Przetestuj zgodnie z `/docs/chrome-extension-testing.md`
+2. **Generuj URL:**
+   - Dashboard automatycznie generuje listę URL Allegro
+   - Skopiuj do schowka lub eksportuj
 
-3. **Debugging & Optymalizacja**
-   - Sprawdź parsowanie produktów Allegro
-   - Zweryfikuj komunikację z PocketBase  
-   - Optymalizuj selektory CSS
+3. **Zbieraj dane:**
+   - Otwórz Chrome Extension
+   - Wklej URL i uruchom queue
+   - Dane automatycznie trafiają do bazy
 
-## 📖 Dokumentacja
+4. **Analizuj wyniki:**
+   - Dashboard → Reports → analiza danych
+   - Dashboard → Latest Results → szczegóły
 
-- [PRD - Product Requirements Document](allegro_monitor_prd.md)
-- [Tech Stack Document](tech_stack_document.md)
-- [Implementation Plan](implementation_plan.md)
+## 🔧 Konfiguracja CSV
 
-## 🔧 Development
+### Format pliku:
+```csv
+wosk samochodowy,title,Turtle Wax
+wosk do auta,brand,Meguiars  
+oferta specjalna,url,https://allegro.pl/oferta/123456
+```
 
-### Lokalne uruchomienie
-1. Sklonuj repozytorium
-2. Zainstaluj PocketBase
-3. Skonfiguruj Chrome Extension w trybie deweloperskim
-4. Uruchom lokalny serwer PocketBase
+### Typy dopasowania:
+- `title` - nazwa produktu
+- `brand` - marka produktu  
+- `url` - konkretny adres URL
 
-### Testowanie
-1. Otwórz Chrome DevTools
-2. Przejdź na stronę Allegro z wynikami wyszukiwania
-3. Kliknij ikonę extension
-4. Przetestuj funkcje skanowania
+## 📈 Status projektu
 
-## 📞 Kontakt
+### ✅ Ukończone
+- [x] Chrome Extension z queue system
+- [x] PocketBase backend z collections
+- [x] Web Dashboard z 3 zakładkami
+- [x] Import/export CSV
+- [x] System cache
+- [x] Autoryzacja użytkowników
 
-Projekt realizowany jako wtyczka wewnętrzna dla zespołu e-commerce.
+### 🚧 W trakcie
+- [ ] Deployment na zewnętrzny serwer
+- [ ] GitHub repository setup
+- [ ] Pakowanie extension do dystrybucji
+
+### 🔮 Planowane
+- [ ] Harmonogram automatycznych sprawdzeń
+- [ ] Email notifications
+- [ ] Advanced analytics
+- [ ] Multi-user support
+
+## 🎁 Releases
+
+Spakowane wersje Chrome Extension będą dostępne w sekcji [Releases](../../releases).
+
+## 📞 Support
+
+W przypadku problemów:
+1. Sprawdź logi w console przeglądarki (F12)
+2. Sprawdź czy PocketBase jest uruchomiony (port 8090)
+3. Sprawdź czy Dashboard działa (port 3001)
+
+## 🔒 Bezpieczeństwo
+
+- Wszystkie dane przechowywane lokalnie
+- Autoryzacja przez PocketBase
+- Brak zewnętrznych dependencies w extension
+
+## 📝 Changelog
+
+### v1.0.0 (Aktualna)
+- Pełny workflow import → monitoring → analiza
+- Chrome Extension z queue
+- Dashboard z masowym importem CSV
+- PocketBase backend z relations
 
 ---
 
-**Aktualizacja**: Aktualnie w fazie implementacji podstawowych funkcji Chrome Extension. 
+**Projekt w aktywnym rozwoju** 🚀 

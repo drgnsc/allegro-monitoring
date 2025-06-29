@@ -61,4 +61,24 @@ web-dashboard/dist/
 web-dashboard/node_modules/
 
 # Documentation build
-docs/_site/ 
+docs/_site/
+
+# PocketBase data
+backend/pb_data/
+backend/pocketbase.zip
+backend/pocketbase_*.zip
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Cache
+.npm
+.eslintcache
+.cache/ 
