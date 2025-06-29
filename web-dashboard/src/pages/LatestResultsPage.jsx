@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import '../styles/LatestResultsPage.css'
-import { cachedApiCall } from '../utils/cache'
+import cache, { cachedApiCall } from '../utils/cache'
 
 const LatestResultsPage = ({ user, pocketbaseUrl }) => {
   const [results, setResults] = useState([])
@@ -87,8 +87,12 @@ const LatestResultsPage = ({ user, pocketbaseUrl }) => {
 
   const showDetailedResults = async (keyword) => {
     try {
+      const apiUrl = `${pocketbaseUrl}/api/collections/positions/records?filter=userId="${user.id}"&&keyword="${keyword}"&&date~"${selectedDate}"`
+      
+
+
       const data = await cachedApiCall(
-        `${pocketbaseUrl}/api/collections/positions/records?filter=userId="${user.id}"&&keyword="${keyword}"&&date~"${selectedDate}"`,
+        apiUrl,
         {
           headers: {
             'Authorization': `Bearer ${user.token}`,
@@ -99,9 +103,13 @@ const LatestResultsPage = ({ user, pocketbaseUrl }) => {
       )
       
       if (data.items.length > 0) {
-        const products = data.items[0].products || []
-        console.log('Debug - szczegółowe wyniki:', products)
-        console.log('Debug - pierwszy produkt:', products[0])
+        // Znajdź najnowszy rekord (najnowszy timestamp)
+        const sortedItems = data.items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        const latestItem = sortedItems[0]
+        
+        const products = latestItem.products || []
+
+        
         setDetailedResults(products)
         setSelectedKeyword(keyword)
       }
@@ -128,6 +136,25 @@ const LatestResultsPage = ({ user, pocketbaseUrl }) => {
     a.download = `${selectedKeyword}_${selectedDate}.csv`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const forceRefresh = () => {
+    cache.clear()
+    if (selectedDate) {
+      loadResultsForDate(selectedDate)
+    }
+  }
+
+  const forceRefreshDetailed = (keyword) => {
+    const cacheKey = cache.generateKey(
+      `${pocketbaseUrl}/api/collections/positions/records?filter=userId="${user.id}"&&keyword="${keyword}"&&date~"${selectedDate}"`,
+      {
+        method: 'GET',
+        userId: user.id
+      }
+    )
+    cache.delete(cacheKey)
+    showDetailedResults(keyword)
   }
 
   const formatDate = (dateString) => {
@@ -161,7 +188,13 @@ const LatestResultsPage = ({ user, pocketbaseUrl }) => {
             </option>
           ))}
         </select>
+        {selectedDate && (
+          <button onClick={forceRefresh} style={{marginLeft: '10px', padding: '5px 10px', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'}}>
+            🔄 Odśwież bez cache
+          </button>
+        )}
       </div>
+
 
       {/* Wyniki dla wybranej daty */}
       {selectedDate && (
@@ -210,12 +243,15 @@ const LatestResultsPage = ({ user, pocketbaseUrl }) => {
       )}
 
       {/* Modal z szczegółowymi wynikami */}
-      {selectedKeyword && detailedResults.length > 0 && (
+      {selectedKeyword && (
         <div className="modal-overlay" onClick={() => setSelectedKeyword(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>📋 Szczegółowe wyniki dla: {selectedKeyword}</h3>
               <div className="modal-actions">
+                <button onClick={() => forceRefreshDetailed(selectedKeyword)} style={{marginRight: '10px', padding: '5px 10px', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'}}>
+                  🔄 Odśwież
+                </button>
                 <button onClick={exportToCsv} className="export-csv-btn">
                   💾 Eksport CSV
                 </button>
@@ -226,41 +262,84 @@ const LatestResultsPage = ({ user, pocketbaseUrl }) => {
             </div>
             
             <div className="modal-body">
-              <div className="products-table">
-                <div className="table-header">
-                  <div>Pozycja</div>
-                  <div>Nazwa produktu</div>
-                  <div>Cena</div>
-                  <div>Sprzedawca</div>
-                  <div>URL</div>
+              {detailedResults.length === 0 ? (
+                <div className="empty-products">
+                  <p>🚫 Brak produktów dla tego słowa kluczowego</p>
+                  <p>Sprawdź czy Chrome Extension faktycznie znalazł produkty dla tego zapytania.</p>
                 </div>
-                
-                {detailedResults.map((product, index) => (
-                  <div key={index} className="table-row">
-                    <div className="position-cell">
-                      <span className="position-badge">{product.position || '-'}</span>
-                    </div>
-                    <div className="title-cell">{product.title || '-'}</div>
-                    <div className="price-cell">
-                      <strong style={{color: product.price ? '#38a169' : '#red'}}>
-                        {product.price || 'BRAK CENY'}
-                      </strong>
-                    </div>
-                    <div className="seller-cell">
-                      <strong style={{color: product.seller ? '#4a5568' : 'red'}}>
-                        {product.seller || 'BRAK SPRZEDAWCY'}
-                      </strong>
-                    </div>
-                    <div className="url-cell">
-                      {product.url ? (
-                        <a href={product.url} target="_blank" rel="noopener noreferrer">
-                          🔗 Otwórz
-                        </a>
-                      ) : '-'}
-                    </div>
+              ) : (
+                <div className="products-table">
+                  <div className="table-header">
+                    <div>Pozycja</div>
+                    <div>Nazwa produktu</div>
+                    <div>Cena</div>
+                    <div>Rating & Sponsor</div>
+                    <div>URL</div>
                   </div>
-                ))}
-              </div>
+                  
+                  <div style={{padding: '10px', backgroundColor: '#f7fafc', marginBottom: '10px', fontSize: '0.85rem'}}>
+                    📋 <strong>Znaleziono {detailedResults.length} produktów</strong> dla słowa kluczowego: <code>{selectedKeyword}</code>
+                  </div>
+                  
+                  {detailedResults.map((product, index) => {
+                    // Funkcja pomocnicza do znalezienia ceny w różnych polach
+                    const findPrice = (prod) => {
+                      return prod.price || prod.Price || prod.PRICE || prod.cena || prod.Cena || null
+                    }
+                    
+                    // Pobranie ratingu i informacji o sponsorowaniu
+                    const rating = product.rating || null
+                    const isSponsored = product.sponsored || false
+                    
+                    const price = findPrice(product)
+                    
+                    return (
+                      <div key={index} className="table-row">
+                        <div className="position-cell">
+                          <span className="position-badge">{product.position || '-'}</span>
+                        </div>
+                        <div className="title-cell">
+                          {product.title || '-'}
+                        </div>
+                        <div className="price-cell">
+                          <strong style={{color: price ? '#38a169' : 'red'}}>
+                            {price || 'BRAK CENY'}
+                          </strong>
+                        </div>
+                        <div className="rating-cell">
+                          <div style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
+                            {rating ? (
+                              <span style={{color: '#38a169', fontSize: '0.9rem'}}>
+                                ⭐ {rating}
+                              </span>
+                            ) : (
+                              <span style={{color: '#666', fontSize: '0.8rem'}}>
+                                Brak ratingu
+                              </span>
+                            )}
+                            {isSponsored ? (
+                              <span style={{color: '#e53e3e', fontSize: '0.75rem', fontWeight: 'bold'}}>
+                                🏷️ SPONSOR
+                              </span>
+                            ) : (
+                              <span style={{color: '#38a169', fontSize: '0.75rem'}}>
+                                ✅ Organiczny
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="url-cell">
+                          {product.url ? (
+                            <a href={product.url} target="_blank" rel="noopener noreferrer">
+                              🔗 Otwórz
+                            </a>
+                          ) : '-'}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

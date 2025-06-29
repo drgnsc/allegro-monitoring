@@ -208,6 +208,9 @@
 .title-cell {
   color: #2d3748;
   font-weight: 500;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.4;
 }
 
 .price-cell {

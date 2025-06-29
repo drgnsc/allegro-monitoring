@@ -12,6 +12,7 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
   const [generatedUrls, setGeneratedUrls] = useState([])
   const [importLoading, setImportLoading] = useState(false)
   const [importResults, setImportResults] = useState(null)
+  const [showCsvImport, setShowCsvImport] = useState(false)
 
   useEffect(() => {
     loadKeywords()
@@ -26,7 +27,9 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
       console.log('🔄 Ładowanie keywords z PocketBase...')
       console.log('👤 Filtruję dla userId:', user.id)
       
-      const response = await fetch(`${pocketbaseUrl}/api/collections/keywords/records`, {
+      // Pobierz z filtrem PocketBase i większym limitem
+      const filter = `userId="${user.id}"`
+      const response = await fetch(`${pocketbaseUrl}/api/collections/keywords/records?filter=${encodeURIComponent(filter)}&perPage=500&sort=-created`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${user.token}`,
@@ -40,12 +43,10 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
       
       const data = await response.json()
       
-      console.log('📊 Załadowano wszystkich keywords:', data.items?.length || 0)
-      // Filtruj po userId po stronie klienta
-      const userKeywords = (data.items || []).filter(item => item.userId === user.id)
-      console.log('📊 Przefiltrowane keywords dla użytkownika:', userKeywords.length)
-      console.log('🔍 Pierwsze 3 keywords:', userKeywords.slice(0, 3))
-      setKeywords(userKeywords)
+      console.log('📊 Załadowano keywords dla użytkownika:', data.items?.length || 0)
+      console.log('📊 Total items w PocketBase:', data.totalItems || 0)
+      console.log('🔍 Pierwsze 3 keywords:', data.items.slice(0, 3))
+      setKeywords(data.items || [])
     } catch (error) {
       console.error('❌ Error loading keywords:', error)
     }
@@ -335,70 +336,84 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
         </form>
       </div>
 
-      {/* Import masowy CSV */}
+      {/* Import masowy CSV - Rozwijana sekcja */}
       <div className="csv-import-section">
-        <h3>📂 Import masowy z pliku CSV</h3>
-        <p>Zaimportuj wiele słów kluczowych jednocześnie z pliku CSV</p>
+        <button 
+          className={`csv-import-toggle ${showCsvImport ? 'expanded' : ''}`}
+          onClick={() => setShowCsvImport(!showCsvImport)}
+        >
+          <span className="toggle-icon">{showCsvImport ? '🔽' : '▶️'}</span>
+          <span className="toggle-text">📂 Import masowy z pliku CSV</span>
+          <span className="toggle-hint">
+            {showCsvImport ? 'Kliknij aby zwinąć' : 'Kliknij aby rozwinąć opcje importu'}
+          </span>
+        </button>
         
-        <div className="csv-format-info">
-          <h4>📋 Format pliku CSV:</h4>
-          <div className="format-example">
-            <code>słowo_kluczowe,typ_dopasowania,wartość_dopasowania</code>
-            <br />
-            <small>
-              <strong>Typ dopasowania:</strong> <code>title</code> (nazwa produktu), <code>brand</code> (marka), <code>url</code> (adres URL)
-            </small>
-          </div>
-          
-          <div className="csv-example">
-            <h5>Przykład:</h5>
-            <pre>
-wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta specjalna,url,https://allegro.pl/oferta/123456
-            </pre>
-          </div>
-          
-          <button onClick={downloadCsvTemplate} className="template-btn">
-            💾 Pobierz szablon CSV
-          </button>
-        </div>
-
-        <div className="csv-import-controls">
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleCsvImport}
-            disabled={importLoading}
-            className="csv-file-input"
-            id="csv-file-input"
-          />
-          <label htmlFor="csv-file-input" className={`csv-file-label ${importLoading ? 'disabled' : ''}`}>
-            {importLoading ? '📤 Importowanie...' : '📤 Wybierz plik CSV'}
-          </label>
-        </div>
-
-        {/* Wyniki importu */}
-        {importResults && (
-          <div className="import-results">
-            <h4>📊 Wyniki importu:</h4>
-            <div className="import-stats">
-              <div className="stat success">
-                ✅ Zaimportowano: {importResults.success}/{importResults.total}
-              </div>
-              {importResults.errors.length > 0 && (
-                <div className="stat errors">
-                  ❌ Błędy: {importResults.errors.length}
-                </div>
-              )}
-            </div>
+        {showCsvImport && (
+          <div className="csv-import-content">
+            <p>Zaimportuj wiele słów kluczowych jednocześnie z pliku CSV</p>
             
-            {importResults.errors.length > 0 && (
-              <div className="import-errors">
-                <h5>⚠️ Lista błędów:</h5>
-                <ul>
-                  {importResults.errors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
+            <div className="csv-format-info">
+              <h4>📋 Format pliku CSV:</h4>
+              <div className="format-example">
+                <code>słowo_kluczowe,typ_dopasowania,wartość_dopasowania</code>
+                <br />
+                <small>
+                  <strong>Typ dopasowania:</strong> <code>title</code> (nazwa produktu), <code>brand</code> (marka), <code>url</code> (adres URL)
+                </small>
+              </div>
+              
+              <div className="csv-example">
+                <h5>Przykład:</h5>
+                <pre>
+wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta specjalna,url,https://allegro.pl/oferta/123456
+                </pre>
+              </div>
+              
+              <button onClick={downloadCsvTemplate} className="template-btn">
+                💾 Pobierz szablon CSV
+              </button>
+            </div>
+
+            <div className="csv-import-controls">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCsvImport}
+                disabled={importLoading}
+                className="csv-file-input"
+                id="csv-file-input"
+              />
+              <label htmlFor="csv-file-input" className={`csv-file-label ${importLoading ? 'disabled' : ''}`}>
+                {importLoading ? '📤 Importowanie...' : '📤 Wybierz plik CSV'}
+              </label>
+            </div>
+
+            {/* Wyniki importu */}
+            {importResults && (
+              <div className="import-results">
+                <h4>📊 Wyniki importu:</h4>
+                <div className="import-stats">
+                  <div className="stat success">
+                    ✅ Zaimportowano: {importResults.success}/{importResults.total}
+                  </div>
+                  {importResults.errors.length > 0 && (
+                    <div className="stat errors">
+                      ❌ Błędy: {importResults.errors.length}
+                    </div>
+                  )}
+                </div>
+                
+                {importResults.errors.length > 0 && (
+                  <div className="import-errors">
+                    <h5>⚠️ Lista błędów:</h5>
+                    <ul>
+                      {importResults.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>

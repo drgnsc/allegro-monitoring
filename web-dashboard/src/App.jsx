@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage'
 import ProjectPage from './pages/ProjectPage'
 import ReportsPage from './pages/ReportsPage'
 import LatestResultsPage from './pages/LatestResultsPage'
+import ChangesPage from './pages/ChangesPage'
 import { clearAllCache } from './utils/cache'
 
 function App() {
@@ -55,6 +56,8 @@ function App() {
         return <ReportsPage user={user} pocketbaseUrl={pocketbaseUrl} />
       case 'latest':
         return <LatestResultsPage user={user} pocketbaseUrl={pocketbaseUrl} />
+      case 'changes':
+        return <ChangesPage user={user} pocketbaseUrl={pocketbaseUrl} />
       default:
         return <ProjectPage user={user} pocketbaseUrl={pocketbaseUrl} />
     }
@@ -89,6 +92,12 @@ function App() {
             onClick={() => setActiveTab('latest')}
           >
             ⏰ Ostatnie wyniki
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'changes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('changes')}
+          >
+            🔄 Zmiany
           </button>
         </nav>
       </header>
