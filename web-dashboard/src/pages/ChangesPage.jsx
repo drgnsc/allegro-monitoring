@@ -10,6 +10,8 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
   const [availableDates, setAvailableDates] = useState([])
   const [analysisData, setAnalysisData] = useState(null)
   const [coverageData, setCoverageData] = useState(null)
+  const [recommendations, setRecommendations] = useState([])
+  const [showRecommendations, setShowRecommendations] = useState(false)
 
   useEffect(() => {
     if (user?.id) {
@@ -140,6 +142,10 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
       // Porównanie zmian pozycji
       const analysis = analyzePositionChanges(currentData, previousData)
       setAnalysisData(analysis)
+
+      // Generuj rekomendacje URL
+      const urlRecommendations = await generateUrlRecommendations()
+      setRecommendations(urlRecommendations)
 
     } catch (error) {
       console.error('Error generating comparison:', error)
@@ -330,6 +336,103 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
         unchanged: changes.filter(c => c.positionChange === 0).length
       }
     }
+  }
+
+  const generateUrlRecommendations = async () => {
+    if (!coverageData || !analysisData) return []
+    
+    const recommendations = []
+    
+    // 1. URL dla słów kluczowych tylko z jednego okresu
+    const currentKeywords = new Set()
+    const previousKeywords = new Set()
+    
+    // Pobierz wszystkie słowa kluczowe z obu okresów
+    try {
+      const [currentData, previousData] = await Promise.all([
+        fetchPeriodData(currentPeriod),
+        fetchPeriodData(previousPeriod)
+      ])
+      
+      currentData.forEach(record => currentKeywords.add(record.keyword))
+      previousData.forEach(record => previousKeywords.add(record.keyword))
+      
+      // Znajdź słowa kluczowe tylko w jednym okresie
+      const onlyInCurrent = [...currentKeywords].filter(k => !previousKeywords.has(k))
+      const onlyInPrevious = [...previousKeywords].filter(k => !currentKeywords.has(k))
+      
+      // Generuj URL dla brakujących słów kluczowych
+      if (onlyInCurrent.length > 0) {
+        const urls = onlyInCurrent.map(keyword => 
+          `https://allegro.pl/kategoria/motoryzacja?string=${encodeURIComponent(keyword)}&order=n`
+        )
+        recommendations.push({
+          type: 'missing_previous',
+          title: `Brakujące dane dla ${onlyInCurrent.length} słów kluczowych z okresu ${previousPeriod}`,
+          description: `Te słowa kluczowe mają dane tylko w okresie ${currentPeriod}. Sprawdź je dla${previousPeriod} aby uzyskać pełne porównanie.`,
+          keywords: onlyInCurrent,
+          urls: urls,
+          priority: 'high'
+        })
+      }
+      
+      if (onlyInPrevious.length > 0) {
+        const urls = onlyInPrevious.map(keyword => 
+          `https://allegro.pl/kategoria/motoryzacja?string=${encodeURIComponent(keyword)}&order=n`
+        )
+        recommendations.push({
+          type: 'missing_current',
+          title: `Brakujące dane dla ${onlyInPrevious.length} słów kluczowych z okresu ${currentPeriod}`,
+          description: `Te słowa kluczowe mają dane tylko w okresie ${previousPeriod}. Sprawdź je dla ${currentPeriod} aby uzyskać pełne porównanie.`,
+          keywords: onlyInPrevious,
+          urls: urls,
+          priority: 'high'
+        })
+      }
+      
+      // 2. Rekomendacje na podstawie słabych pozycji
+      const weakPositions = analysisData.allChanges
+        .filter(change => change.currentBest > 20) // Pozycje gorsze niż 20
+        .slice(0, 10)
+        
+      if (weakPositions.length > 0) {
+        const urls = weakPositions.map(change => 
+          `https://allegro.pl/kategoria/motoryzacja?string=${encodeURIComponent(change.keyword)}&order=n`
+        )
+        recommendations.push({
+          type: 'weak_positions',
+          title: `Słowa kluczowe wymagające uwagi (${weakPositions.length})`,
+          description: `Te słowa kluczowe mają słabe pozycje (>20). Warto je sprawdzić ponownie.`,
+          keywords: weakPositions.map(c => c.keyword),
+          urls: urls,
+          priority: 'medium'
+        })
+      }
+      
+      // 3. Rekomendacje na podstawie spadków
+      const majorDeclines = analysisData.declines
+        .filter(change => change.positionChange < -5) // Spadki większe niż 5 pozycji
+        .slice(0, 10)
+        
+      if (majorDeclines.length > 0) {
+        const urls = majorDeclines.map(change => 
+          `https://allegro.pl/kategoria/motoryzacja?string=${encodeURIComponent(change.keyword)}&order=n`
+        )
+        recommendations.push({
+          type: 'major_declines',
+          title: `Słowa kluczowe z dużymi spadkami (${majorDeclines.length})`,
+          description: `Te słowa kluczowe straciły ponad 5 pozycji. Sprawdź je ponownie.`,
+          keywords: majorDeclines.map(c => c.keyword),
+          urls: urls,
+          priority: 'high'
+        })
+      }
+      
+    } catch (error) {
+      console.error('Error generating recommendations:', error)
+    }
+    
+    return recommendations
   }
 
   const getCoverageColor = (percentage) => {
@@ -705,6 +808,104 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
     )
   }
 
+  const renderUrlRecommendations = () => {
+    if (!recommendations || recommendations.length === 0) return null
+
+    const copyUrlsToClipboard = (urls) => {
+      navigator.clipboard.writeText(urls.join('\n'))
+      alert('URL skopiowane do schowka!')
+    }
+
+    const getPriorityIcon = (priority) => {
+      switch (priority) {
+        case 'high': return '🔴'
+        case 'medium': return '🟡'
+        case 'low': return '🟢'
+        default: return '⚪'
+      }
+    }
+
+    const getPriorityClass = (priority) => {
+      switch (priority) {
+        case 'high': return 'priority-high'
+        case 'medium': return 'priority-medium'
+        case 'low': return 'priority-low'
+        default: return 'priority-default'
+      }
+    }
+
+    return (
+      <div className="url-recommendations">
+        <div className="recommendations-header">
+          <h3>🎯 Rekomendacje URL do sprawdzenia</h3>
+          <button 
+            className="toggle-recommendations"
+            onClick={() => setShowRecommendations(!showRecommendations)}
+          >
+            {showRecommendations ? '🔼 Zwiń' : '🔽 Rozwiń'} ({recommendations.length})
+          </button>
+        </div>
+
+        {showRecommendations && (
+          <div className="recommendations-content">
+            <div className="recommendations-intro">
+              <p>
+                💡 Na podstawie analizy znaleźliśmy {recommendations.length} rekomendacji URL do sprawdzenia 
+                dla uzupełnienia brakujących danych lub ponownej weryfikacji pozycji.
+              </p>
+            </div>
+
+            {recommendations.map((rec, index) => (
+              <div key={index} className={`recommendation-card ${getPriorityClass(rec.priority)}`}>
+                <div className="recommendation-header">
+                  <span className="recommendation-priority">{getPriorityIcon(rec.priority)}</span>
+                  <h4>{rec.title}</h4>
+                </div>
+                
+                <div className="recommendation-description">
+                  {rec.description}
+                </div>
+
+                <div className="recommendation-keywords">
+                  <strong>Słowa kluczowe ({rec.keywords.length}):</strong>
+                  <div className="keywords-list">
+                    {rec.keywords.slice(0, 10).map((keyword, i) => (
+                      <span key={i} className="keyword-tag">{keyword}</span>
+                    ))}
+                    {rec.keywords.length > 10 && (
+                      <span className="keyword-tag more">+{rec.keywords.length - 10} więcej</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="recommendation-actions">
+                  <button 
+                    onClick={() => copyUrlsToClipboard(rec.urls)}
+                    className="copy-urls-btn"
+                  >
+                    📋 Skopiuj URL ({rec.urls.length})
+                  </button>
+                  
+                  <details className="urls-details">
+                    <summary>🔗 Pokaż wszystkie URL</summary>
+                    <div className="urls-list-container">
+                      {rec.urls.map((url, i) => (
+                        <div key={i} className="url-item-small">
+                          <span className="url-number">{i + 1}.</span>
+                          <code className="url-code">{url}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="changes-page">
       <div className="page-header">
@@ -801,6 +1002,7 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
         ) : (
           <>
             {renderCoverageAnalysis()}
+            {renderUrlRecommendations()}
             {renderPositionChanges()}
             {renderTopProducts()}
             {renderTrendAnalysis()}

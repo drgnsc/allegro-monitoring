@@ -13,6 +13,19 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
   const [importLoading, setImportLoading] = useState(false)
   const [importResults, setImportResults] = useState(null)
   const [showCsvImport, setShowCsvImport] = useState(false)
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(100)
+
+  // Pagination calculations
+  const totalPages = Math.ceil(keywords.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentKeywords = keywords.slice(startIndex, endIndex)
+
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }
 
   useEffect(() => {
     loadKeywords()
@@ -424,20 +437,27 @@ wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta s
       <div className="keywords-section">
         <div className="keywords-header">
           <h3>📝 Lista słów kluczowych ({keywords.length}/1000)</h3>
-          <button 
-            onClick={() => {
-              console.log('🔄 Ręczne odświeżanie listy keywords...')
-              console.log('👤 User ID:', user.id)
-              // Wyczyść cache i przeładuj
-              const cacheKey = `${pocketbaseUrl}/api/collections/keywords/records?sort=-created`
-              invalidateCache(cacheKey)
-              loadKeywords()
-            }} 
-            className="refresh-btn"
-            title="Odśwież listę słów kluczowych"
-          >
-            🔄 Odśwież
-          </button>
+          <div className="header-controls">
+            {keywords.length > itemsPerPage && (
+              <div className="pagination-info">
+                Strona {currentPage} z {totalPages} (pozycje {startIndex + 1}-{Math.min(endIndex, keywords.length)})
+              </div>
+            )}
+            <button 
+              onClick={() => {
+                console.log('🔄 Ręczne odświeżanie listy keywords...')
+                console.log('👤 User ID:', user.id)
+                // Wyczyść cache i przeładuj
+                const cacheKey = `${pocketbaseUrl}/api/collections/keywords/records?sort=-created`
+                invalidateCache(cacheKey)
+                loadKeywords()
+              }} 
+              className="refresh-btn"
+              title="Odśwież listę słów kluczowych"
+            >
+              🔄 Odśwież
+            </button>
+          </div>
         </div>
         
         {keywords.length === 0 ? (
@@ -445,66 +465,151 @@ wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta s
             <p>Brak słów kluczowych. Dodaj pierwsze słowo kluczowe powyżej.</p>
           </div>
         ) : (
-          <div className="keywords-table">
-            <div className="table-header">
-              <div>Słowo kluczowe</div>
-              <div>Typ dopasowania</div>
-              <div>Wartość</div>
-              <div>Data dodania</div>
-              <div>Akcje</div>
+          <>
+            <div className="keywords-table">
+              <div className="table-header">
+                <div>Słowo kluczowe</div>
+                <div>Typ dopasowania</div>
+                <div>Wartość</div>
+                <div>Data dodania</div>
+                <div>Akcje</div>
+              </div>
+              
+              {currentKeywords.map((keyword) => (
+                <div key={keyword.id} className="table-row">
+                  <div className="keyword-cell">{keyword.keyword}</div>
+                  <div className="match-type-cell">
+                    <span className={`match-type-badge ${keyword.matchType}`}>
+                      {keyword.matchType === 'title' ? '📝 Nazwa' :
+                       keyword.matchType === 'brand' ? '🏷️ Marka' :
+                       '🔗 URL'}
+                    </span>
+                  </div>
+                  <div className="match-value-cell">{keyword.matchValue}</div>
+                  <div className="date-cell">
+                    {new Date(keyword.created).toLocaleDateString('pl-PL')}
+                  </div>
+                  <div className="actions-cell">
+                    <button
+                      onClick={() => deleteKeyword(keyword.id)}
+                      className="delete-btn"
+                      title="Usuń słowo kluczowe"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
             
-            {keywords.map((keyword) => (
-              <div key={keyword.id} className="table-row">
-                <div className="keyword-cell">{keyword.keyword}</div>
-                <div className="match-type-cell">
-                  <span className={`match-type-badge ${keyword.matchType}`}>
-                    {keyword.matchType === 'title' ? '📝 Nazwa' :
-                     keyword.matchType === 'brand' ? '🏷️ Marka' :
-                     '🔗 URL'}
-                  </span>
-                </div>
-                <div className="match-value-cell">{keyword.matchValue}</div>
-                <div className="date-cell">
-                  {new Date(keyword.created).toLocaleDateString('pl-PL')}
-                </div>
-                <div className="actions-cell">
-                  <button
-                    onClick={() => deleteKeyword(keyword.id)}
-                    className="delete-btn"
-                    title="Usuń słowo kluczowe"
-                  >
-                    🗑️
-                  </button>
-                </div>
+            {keywords.length > itemsPerPage && (
+              <div className="pagination">
+                <button 
+                  onClick={() => goToPage(1)} 
+                  disabled={currentPage === 1}
+                  className="pagination-btn first"
+                  title="Pierwsza strona"
+                >
+                  ««
+                </button>
+                <button 
+                  onClick={() => goToPage(currentPage - 1)} 
+                  disabled={currentPage === 1}
+                  className="pagination-btn prev"
+                  title="Poprzednia strona"
+                >
+                  «
+                </button>
+                
+                {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                  let pageNumber
+                  if (totalPages <= 5) {
+                    pageNumber = i + 1
+                  } else if (currentPage <= 3) {
+                    pageNumber = i + 1
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNumber = totalPages - 4 + i
+                  } else {
+                    pageNumber = currentPage - 2 + i
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNumber}
+                      onClick={() => goToPage(pageNumber)}
+                      className={`pagination-btn page-number ${currentPage === pageNumber ? 'active' : ''}`}
+                      title={`Strona ${pageNumber}`}
+                    >
+                      {pageNumber}
+                    </button>
+                  )
+                })}
+                
+                <button 
+                  onClick={() => goToPage(currentPage + 1)} 
+                  disabled={currentPage === totalPages}
+                  className="pagination-btn next"
+                  title="Następna strona"
+                >
+                  »
+                </button>
+                <button 
+                  onClick={() => goToPage(totalPages)} 
+                  disabled={currentPage === totalPages}
+                  className="pagination-btn last"
+                  title="Ostatnia strona"
+                >
+                  »»
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 
       {/* Generowane URL */}
       {generatedUrls.length > 0 && (
         <div className="urls-section">
-          <h3>🔗 Lista URL do sprawdzenia we wtyczce</h3>
+          <h3>🔗 Lista URL do sprawdzenia we wtyczce ({generatedUrls.length})</h3>
           <p>Skopiuj poniższe URL i wklej do wtyczki Chrome dla zbiorczego sprawdzenia pozycji</p>
           
           <div className="urls-actions">
             <button onClick={copyUrlsToClipboard} className="copy-btn">
-              📋 Skopiuj do schowka
+              📋 Skopiuj wszystkie URL
             </button>
             <button onClick={exportUrls} className="export-btn">
               💾 Eksportuj do pliku
             </button>
           </div>
 
+          <div className="urls-display-options">
+            <div className="url-format-info">
+              💡 <strong>Wskazówka:</strong> Możesz zaznaczać tylko URL (bez numerów) - numery są niezbędne w osobnych divach
+            </div>
+          </div>
+
           <div className="urls-list">
             {generatedUrls.map((url, index) => (
               <div key={index} className="url-item">
-                <span className="url-number">{index + 1}.</span>
-                <code className="url-text">{url}</code>
+                <div className="url-number">{index + 1}.</div>
+                <div className="url-text-container">
+                  <code className="url-text" title="Kliknij aby zaznaczyć URL">{url}</code>
+                </div>
               </div>
             ))}
+          </div>
+          
+          <div className="urls-textarea-section">
+            <h4>📝 Alternatywny format (do zaznaczania)</h4>
+            <p>Jeśli chcesz łatwiej zaznaczyć wybrane URL, użyj pola poniżej:</p>
+            <textarea 
+              className="urls-textarea"
+              value={generatedUrls.join('\n')}
+              readOnly
+              rows={Math.min(10, generatedUrls.length)}
+              placeholder="Wygenerowane URL pojawią się tutaj..."
+              title="Możesz zaznaczyć wybrane linie z URL"
+            />
           </div>
         </div>
       )}

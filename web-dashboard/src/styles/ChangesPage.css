@@ -682,4 +682,253 @@
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* URL Recommendations */
+.url-recommendations {
+  background: #f0f9ff;
+  border: 2px solid #bae6fd;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.recommendations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.recommendations-header h3 {
+  color: #0369a1;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.toggle-recommendations {
+  background: #0ea5e9;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.toggle-recommendations:hover {
+  background: #0284c7;
+  transform: translateY(-1px);
+}
+
+.recommendations-content {
+  animation: slideDown 0.3s ease-out;
+}
+
+.recommendations-intro {
+  background: #e0f2fe;
+  border: 1px solid #7dd3fc;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.recommendations-intro p {
+  margin: 0;
+  color: #0c4a6e;
+  font-size: 0.95rem;
+}
+
+.recommendation-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.recommendation-card.priority-high {
+  border-left: 4px solid #ef4444;
+  background: #fef2f2;
+}
+
+.recommendation-card.priority-medium {
+  border-left: 4px solid #f59e0b;
+  background: #fffbeb;
+}
+
+.recommendation-card.priority-low {
+  border-left: 4px solid #10b981;
+  background: #f0fdf4;
+}
+
+.recommendation-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.recommendation-priority {
+  font-size: 1rem;
+}
+
+.recommendation-header h4 {
+  color: #374151;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.recommendation-description {
+  color: #6b7280;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.recommendation-keywords {
+  margin-bottom: 1.5rem;
+}
+
+.recommendation-keywords strong {
+  color: #374151;
+  font-size: 0.9rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.keywords-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.url-recommendations .keyword-tag {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.url-recommendations .keyword-tag.more {
+  background: #f3f4f6;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.recommendation-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.copy-urls-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  align-self: flex-start;
+}
+
+.copy-urls-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.urls-details {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+
+.urls-details summary {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: #4b5563;
+  user-select: none;
+}
+
+.urls-details summary:hover {
+  background: #f3f4f6;
+}
+
+.urls-list-container {
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.url-item-small {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.url-item-small:last-child {
+  margin-bottom: 0;
+}
+
+.url-item-small .url-number {
+  color: #6b7280;
+  font-size: 0.8rem;
+  min-width: 1.5rem;
+  font-weight: 500;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.url-code {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.8rem;
+  word-break: break-all;
+  flex: 1;
+}
+
+/* Responsive dla recommendations */
+@media (max-width: 640px) {
+  .recommendations-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .toggle-recommendations {
+    align-self: center;
+  }
+  
+  .keywords-list {
+    justify-content: flex-start;
+  }
+  
+  .recommendation-actions {
+    align-items: stretch;
+  }
+  
+  .copy-urls-btn {
+    align-self: stretch;
+    text-align: center;
+  }
 } 
