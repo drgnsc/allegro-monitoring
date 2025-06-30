@@ -117,6 +117,22 @@ class SimpleCache {
       const response = await fetch(url, options)
       
       if (!response.ok) {
+        // Sprawdź czy to błąd autoryzacji
+        if (response.status === 401) {
+          console.warn('🔒 Token wygasł lub jest nieprawidłowy - automatyczne wylogowanie')
+          
+          // Wyczyść dane sesji
+          localStorage.removeItem('pb_auth')
+          this.clear() // Wyczyść cache
+          
+          // Przekieruj do logowania (przeładuj stronę)
+          setTimeout(() => {
+            window.location.reload()
+          }, 1000)
+          
+          throw new Error('Token autoryzacji wygasł. Trwa wylogowywanie...')
+        }
+        
         throw new Error(`HTTP ${response.status}`)
       }
 

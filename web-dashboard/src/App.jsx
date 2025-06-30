@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react'
 import './styles/App.css'
 import LoginPage from './pages/LoginPage'
 import ProjectPage from './pages/ProjectPage'
+import ProjectsManagement from './pages/ProjectsManagement'
 import ReportsPage from './pages/ReportsPage'
 import LatestResultsPage from './pages/LatestResultsPage'
 import ChangesPage from './pages/ChangesPage'
+import MonthlyReportPage from './pages/MonthlyReportPage'
 import { clearAllCache } from './utils/cache'
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [user, setUser] = useState(null)
-  const [activeTab, setActiveTab] = useState('project')
+  const [activeTab, setActiveTab] = useState('projects-management')
   const [pocketbaseUrl] = useState('http://localhost:8090') // Zmienić na produkcyjny URL
 
   useEffect(() => {
@@ -38,7 +40,7 @@ function App() {
     setUser(null)
     setIsLoggedIn(false)
     localStorage.removeItem('pb_auth')
-    setActiveTab('project')
+    setActiveTab('projects-management')
     
     // Wyczyść cache przy wylogowaniu
     clearAllCache()
@@ -52,14 +54,18 @@ function App() {
     switch (activeTab) {
       case 'project':
         return <ProjectPage user={user} pocketbaseUrl={pocketbaseUrl} />
+      case 'projects-management':
+        return <ProjectsManagement user={user} pocketbaseUrl={pocketbaseUrl} />
       case 'reports':
         return <ReportsPage user={user} pocketbaseUrl={pocketbaseUrl} />
       case 'latest':
         return <LatestResultsPage user={user} pocketbaseUrl={pocketbaseUrl} />
       case 'changes':
         return <ChangesPage user={user} pocketbaseUrl={pocketbaseUrl} />
+      case 'monthly-report':
+        return <MonthlyReportPage user={user} pocketbaseUrl={pocketbaseUrl} />
       default:
-        return <ProjectPage user={user} pocketbaseUrl={pocketbaseUrl} />
+        return <ProjectsManagement user={user} pocketbaseUrl={pocketbaseUrl} />
     }
   }
 
@@ -76,10 +82,16 @@ function App() {
         
         <nav className="tab-navigation">
           <button 
+            className={`tab-btn ${activeTab === 'projects-management' ? 'active' : ''}`}
+            onClick={() => setActiveTab('projects-management')}
+          >
+            📁 Projekty
+          </button>
+          <button 
             className={`tab-btn ${activeTab === 'project' ? 'active' : ''}`}
             onClick={() => setActiveTab('project')}
           >
-            📋 Projekt
+            📋 Słowa kluczowe
           </button>
           <button 
             className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`}
@@ -98,6 +110,12 @@ function App() {
             onClick={() => setActiveTab('changes')}
           >
             🔄 Zmiany
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'monthly-report' ? 'active' : ''}`}
+            onClick={() => setActiveTab('monthly-report')}
+          >
+            📅 Raport miesięczny
           </button>
         </nav>
       </header>

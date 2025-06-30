@@ -13,6 +13,10 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
   const [importLoading, setImportLoading] = useState(false)
   const [importResults, setImportResults] = useState(null)
   const [showCsvImport, setShowCsvImport] = useState(false)
+  // Projects management
+  const [projects, setProjects] = useState([])
+  const [selectedProjectId, setSelectedProjectId] = useState('all')
+  const [loadingProjects, setLoadingProjects] = useState(false)
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(100)
@@ -28,20 +32,53 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
   }
 
   useEffect(() => {
+    loadProjects()
     loadKeywords()
   }, [])
+
+  useEffect(() => {
+    loadKeywords()
+  }, [selectedProjectId])
 
   useEffect(() => {
     generateUrls()
   }, [keywords])
 
+  const loadProjects = async () => {
+    setLoadingProjects(true)
+    try {
+      const response = await fetch(`${pocketbaseUrl}/api/collections/projects/records?filter=userId="${user.id}"&sort=-created`, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setProjects(data.items)
+      } else {
+        console.error('Error loading projects:', response.statusText)
+      }
+    } catch (error) {
+      console.error('Error loading projects:', error)
+    } finally {
+      setLoadingProjects(false)
+    }
+  }
+
   const loadKeywords = async () => {
     try {
       console.log('🔄 Ładowanie keywords z PocketBase...')
       console.log('👤 Filtruję dla userId:', user.id)
+      console.log('📁 Wybrany projekt:', selectedProjectId)
       
-      // Pobierz z filtrem PocketBase i większym limitem
-      const filter = `userId="${user.id}"`
+      // Pobierz z filtrem PocketBase tylko dla userId - filtrowanie projektów w JS
+      let filter = `userId="${user.id}"`
+      
+      console.log('🔧 Używamy prostego filtra tylko userId, projekty filtrujemy w JS')
+      
+      console.log('🔍 Używany filtr:', filter)
+      
       const response = await fetch(`${pocketbaseUrl}/api/collections/keywords/records?filter=${encodeURIComponent(filter)}&perPage=500&sort=-created`, {
         method: 'GET',
         headers: {
@@ -56,10 +93,27 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
       
       const data = await response.json()
       
-      console.log('📊 Załadowano keywords dla użytkownika:', data.items?.length || 0)
+      console.log('📊 Załadowano keywords z PocketBase:', data.items?.length || 0)
       console.log('📊 Total items w PocketBase:', data.totalItems || 0)
       console.log('🔍 Pierwsze 3 keywords:', data.items.slice(0, 3))
-      setKeywords(data.items || [])
+      
+      // Filtruj po stronie JS według wybranego projektu
+      let filteredKeywords = data.items || []
+      
+      if (selectedProjectId === 'none') {
+        // Słowa kluczowe bez przypisanego projektu
+        filteredKeywords = filteredKeywords.filter(keyword => !keyword.projectId || keyword.projectId === '')
+        console.log('🔍 Po filtracji "bez projektu":', filteredKeywords.length)
+      } else if (selectedProjectId && selectedProjectId !== 'all') {
+        // Słowa kluczowe z konkretnym projektem
+        filteredKeywords = filteredKeywords.filter(keyword => keyword.projectId === selectedProjectId)
+        console.log('🔍 Po filtracji projektu "' + selectedProjectId + '":', filteredKeywords.length)
+      } else {
+        // Wszystkie projekty - bez filtrowania
+        console.log('🔍 Wszystkie projekty - bez filtrowania:', filteredKeywords.length)
+      }
+      
+      setKeywords(filteredKeywords)
     } catch (error) {
       console.error('❌ Error loading keywords:', error)
     }
@@ -80,6 +134,11 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
         matchValue: newMatchValue.trim(),
         active: true,
         created: new Date().toISOString(),
+      }
+      
+      // Dodaj projectId jeśli wybrano konkretny projekt
+      if (selectedProjectId && selectedProjectId !== 'all' && selectedProjectId !== 'none') {
+        payload.projectId = selectedProjectId
       }
       
       console.log('Wysyłam do PocketBase:', payload)
@@ -210,14 +269,21 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
           return
         }
         
-        keywordsToImport.push({
+        const keywordData = {
           userId: user.id,
           keyword: keyword,
           matchType: matchType,
           matchValue: matchValue,
           active: true,
           created: new Date().toISOString(),
-        })
+        }
+        
+        // Dodaj projectId jeśli wybrano konkretny projekt
+        if (selectedProjectId && selectedProjectId !== 'all' && selectedProjectId !== 'none') {
+          keywordData.projectId = selectedProjectId
+        }
+        
+        keywordsToImport.push(keywordData)
       })
 
       // Import keywords
@@ -291,6 +357,56 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
       <div className="page-header">
         <h2>📋 Projekt - Zarządzanie słowami kluczowymi</h2>
         <p>Dodaj słowa kluczowe i określ kryteria dopasowania dla monitoringu pozycji</p>
+      </div>
+
+      {/* Selektor projektów */}
+      <div className="project-selector-section">
+        <h3>📁 Wybierz projekt</h3>
+        <div className="project-selector">
+          <label htmlFor="project-select">Filtruj słowa kluczowe według projektu:</label>
+          <select
+            id="project-select"
+            value={selectedProjectId}
+            onChange={(e) => setSelectedProjectId(e.target.value)}
+            disabled={loadingProjects}
+            className="project-select-dropdown"
+          >
+            <option value="all">📂 Wszystkie projekty</option>
+            <option value="none">📝 Bez przypisanego projektu</option>
+            {projects.map(project => (
+              <option key={project.id} value={project.id}>
+                {project.active ? '🟢' : '🔴'} {project.name}
+              </option>
+            ))}
+          </select>
+          
+          {selectedProjectId && selectedProjectId !== 'all' && selectedProjectId !== 'none' && (
+            <div className="selected-project-info">
+              {(() => {
+                const project = projects.find(p => p.id === selectedProjectId)
+                return project ? (
+                  <div className="project-details">
+                    <strong>📁 Wybrany projekt:</strong> {project.name}
+                    {project.description && <p><em>{project.description}</em></p>}
+                  </div>
+                ) : null
+              })()}
+            </div>
+          )}
+          
+          {selectedProjectId === 'none' && (
+            <div className="selected-project-info">
+              <p><strong>📝 Filtr:</strong> Słowa kluczowe bez przypisanego projektu</p>
+              <p><em>Nowe słowa kluczowe będą tworzone bez przypisania do projektu</em></p>
+            </div>
+          )}
+          
+          {selectedProjectId && selectedProjectId !== 'all' && (
+            <div className="filter-info">
+              ℹ️ Nowe słowa kluczowe będą {selectedProjectId === 'none' ? 'bez przypisania do projektu' : 'przypisane do wybranego projektu'}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Dodawanie nowego słowa kluczowego */}
