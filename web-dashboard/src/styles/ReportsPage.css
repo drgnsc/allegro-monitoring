@@ -106,12 +106,39 @@
 }
 
 /* Simple table for single date view */
-.simple-table .table-header {
-  grid-template-columns: 2fr 80px 4fr 120px 150px;
+.simple-table .table-header,
+.simple-table .table-row {
+  display: grid;
+  grid-template-columns: 3fr 100px 4fr 120px 150px !important;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 1px solid #e9ecef;
+  padding: 0.75rem;
 }
 
-.simple-table .table-row {
-  grid-template-columns: 2fr 80px 4fr 120px 150px;
+.simple-table .table-header {
+  font-weight: 600;
+  color: #495057;
+  background-color: #f8f9fa;
+}
+
+.simple-table .table-row:last-child {
+  border-bottom: none;
+}
+
+.simple-table .table-row:hover {
+  background-color: #f1f3f5;
+}
+
+/* Centrowanie kolumn: Pozycja, Cena, Średnia ocen */
+.simple-table .table-header > div:nth-child(2),
+.simple-table .table-row > div:nth-child(2),
+.simple-table .table-header > div:nth-child(4),
+.simple-table .table-row > div:nth-child(4),
+.simple-table .table-header > div:nth-child(5),
+.simple-table .table-row > div:nth-child(5) {
+  justify-content: center;
+  text-align: center;
 }
 
 .simple-table .table-row a {

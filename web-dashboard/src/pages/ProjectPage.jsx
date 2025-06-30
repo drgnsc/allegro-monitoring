@@ -606,12 +606,8 @@ wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta s
                     {new Date(keyword.created).toLocaleDateString('pl-PL')}
                   </div>
                   <div className="actions-cell">
-                    <button
-                      onClick={() => deleteKeyword(keyword.id)}
-                      className="delete-btn"
-                      title="Usuń słowo kluczowe"
-                    >
-                      🗑️
+                    <button onClick={() => deleteKeyword(keyword.id)} className="delete-btn">
+                      Usuń
                     </button>
                   </div>
                 </div>
