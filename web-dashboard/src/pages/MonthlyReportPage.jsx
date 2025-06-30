@@ -87,7 +87,7 @@ const MonthlyReportPage = ({ user, pocketbaseUrl }) => {
       console.log('📊 Positions filter:', monthFilter)
       
       // Tymczasowo bez cache  
-      const positionsResponse = await fetch(`${pocketbaseUrl}/api/collections/positions/records?filter=${monthFilter}&sort=-timestamp`, {
+      const positionsResponse = await fetch(`${pocketbaseUrl}/api/collections/positions/records?filter=${monthFilter}&sort=-timestamp&perPage=5000`, {
         headers: {
           'Authorization': `Bearer ${user.token}`,
         }
@@ -116,7 +116,7 @@ const MonthlyReportPage = ({ user, pocketbaseUrl }) => {
       console.log('🔧 Keywords filter:', keywordsFilter)
       
       // Tymczasowo bezpośrednie wywołanie API (bez cache) żeby sprawdzić czy dane się zmieniają
-      const keywordsResponse = await fetch(`${pocketbaseUrl}/api/collections/keywords/records?filter=${keywordsFilter}`, {
+      const keywordsResponse = await fetch(`${pocketbaseUrl}/api/collections/keywords/records?filter=${keywordsFilter}&perPage=5000`, {
         headers: {
           'Authorization': `Bearer ${user.token}`,
         }
@@ -304,14 +304,14 @@ const MonthlyReportPage = ({ user, pocketbaseUrl }) => {
         return `https://allegro.pl/listing?string=${encodedKeyword}`
       })
     
-    setMissingUrls(missing)
+    console.log(`Missing URLs for ${allKeywords.length} keywords and ${monthPositions.length} positions:`, missing.length)
+    
+    // Usuń duplikaty i ustaw w stanie komponentu
+    setMissingUrls([...new Set(missing)])
   }
 
   const handleSort = (key) => {
-    let direction = 'asc'
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc'
-    }
+    const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
     setSortConfig({ key, direction })
   }
 
