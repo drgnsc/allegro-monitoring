@@ -503,13 +503,17 @@ class AllegroMonitorBackground {
         
         // Sprawdź autentykację przy starcie
         await this.checkAuthentication();
+
+        // Sprawdź, czy trzeba wznowić przerwaną kolejkę
+        await this.resumeQueueIfNeeded();
     }
 
     // ======== QUEUE PROCESSING METHODS ========
 
     async startQueueProcessing(urls, positionLimit = 10) {
         try {
-            if (this.isQueueRunning) {
+            const currentState = await this.getQueueState();
+            if (currentState.isRunning) {
                 return { success: false, error: 'Kolejka już działa' };
             }
 
@@ -523,20 +527,24 @@ class AllegroMonitorBackground {
                 return { success: false, error: 'Nie jesteś zalogowany' };
             }
 
-            // Initialize queue
-            this.queueUrls = urls.filter(url => url && url.includes('allegro.pl'));
-            this.currentQueueIndex = 0;
-            this.isQueueRunning = true;
-            this.queueStartTime = Date.now();
+            const filteredUrls = urls.filter(url => url && url.includes('allegro.pl'));
+            
+            await this.setQueueState({
+                isRunning: true,
+                urls: filteredUrls,
+                currentIndex: 0,
+                startTime: Date.now(),
+                positionLimit: positionLimit
+            });
 
-            console.log(`Starting queue processing: ${this.queueUrls.length} URLs, ${positionLimit} positions each`);
+            console.log(`Starting queue processing: ${filteredUrls.length} URLs, ${positionLimit} positions each`);
 
             // Start processing (don't wait for completion)
-            this.processQueueInBackground(positionLimit);
+            this.processQueueInBackground();
 
             return { 
                 success: true, 
-                totalUrls: this.queueUrls.length,
+                totalUrls: filteredUrls.length,
                 message: 'Kolejka rozpoczęta' 
             };
 
@@ -548,17 +556,21 @@ class AllegroMonitorBackground {
 
     async stopQueueProcessing() {
         try {
-            if (!this.isQueueRunning) {
+            const state = await this.getQueueState();
+            if (!state.isRunning) {
                 return { success: false, error: 'Kolejka nie działa' };
             }
 
-            this.isQueueRunning = false;
-            console.log(`Queue stopped at ${this.currentQueueIndex}/${this.queueUrls.length}`);
+            // Ustaw isRunning na false, aby zatrzymać pętlę i wyczyść stan
+            this.isQueueRunning = false; 
+            await this.clearQueueState();
+            
+            console.log(`Queue stopped at ${state.currentIndex}/${state.urls.length}`);
 
             return { 
                 success: true, 
-                processed: this.currentQueueIndex,
-                total: this.queueUrls.length,
+                processed: state.currentIndex,
+                total: state.urls.length,
                 message: 'Kolejka zatrzymana' 
             };
 
@@ -569,18 +581,27 @@ class AllegroMonitorBackground {
     }
 
     async getQueueStatus() {
+        const state = await this.getQueueState();
         return {
             success: true,
-            isRunning: this.isQueueRunning,
-            currentIndex: this.currentQueueIndex,
-            totalUrls: this.queueUrls.length,
-            currentUrl: this.queueUrls[this.currentQueueIndex] || null,
-            startTime: this.queueStartTime
+            isRunning: state.isRunning,
+            currentIndex: state.currentIndex,
+            totalUrls: state.urls.length,
+            currentUrl: state.urls[state.currentIndex] || null,
+            startTime: state.startTime
         };
     }
 
-    async processQueueInBackground(positionLimit) {
+    async processQueueInBackground() {
+        let state = await this.getQueueState();
+        
+        // Uaktualnij stan w pamięci na podstawie storage
+        this.isQueueRunning = state.isRunning;
+        this.queueUrls = state.urls;
+        this.currentQueueIndex = state.currentIndex;
+
         while (this.isQueueRunning && this.currentQueueIndex < this.queueUrls.length) {
+            const positionLimit = state.positionLimit;
             const currentUrl = this.queueUrls[this.currentQueueIndex];
             
             try {
@@ -652,10 +673,11 @@ class AllegroMonitorBackground {
                 this.notifyQueueProgress(currentUrl, result);
                 
                 this.currentQueueIndex++;
+                await chrome.storage.local.set({ 'queue_current_index': this.currentQueueIndex });
                 
                 // Wait between URLs (1-2 minutes for safety - shorter to avoid service worker timeout)
                 if (this.isQueueRunning && this.currentQueueIndex < this.queueUrls.length) {
-                    const waitTime = 60000 + Math.random() * 60000; // 1-2 minutes
+                    const waitTime = 17000 + Math.random() * 15000; // 17-32 seconds
                     console.log(`⏸️ Waiting ${Math.round(waitTime/1000)}s before next URL (${this.currentQueueIndex + 1}/${this.queueUrls.length})...`);
                     await this.delay(waitTime);
                     console.log(`⏰ Wait completed, proceeding to next URL...`);
@@ -667,19 +689,24 @@ class AllegroMonitorBackground {
                 console.error(`Queue processing error for ${currentUrl}:`, error);
                 this.notifyQueueProgress(currentUrl, { success: false, error: error.message });
                 this.currentQueueIndex++;
+                await chrome.storage.local.set({ 'queue_current_index': this.currentQueueIndex });
                 
                 // Continue with next URL after error
                 if (this.isQueueRunning && this.currentQueueIndex < this.queueUrls.length) {
                     await this.delay(10000); // Short delay after error
                 }
             }
+
+            // Odśwież stan pętli na wypadek gdyby został zmieniony z zewnątrz (np. przez stopQueue)
+            state = await this.getQueueState();
+            this.isQueueRunning = state.isRunning;
         }
         
         // Queue finished
         if (this.isQueueRunning) {
-            this.isQueueRunning = false;
             console.log('Queue processing completed');
             this.notifyQueueComplete();
+            await this.clearQueueState();
         }
     }
 
@@ -770,10 +797,71 @@ class AllegroMonitorBackground {
         chrome.runtime.sendMessage({
             action: 'queueComplete',
             processed: this.currentQueueIndex,
-            total: this.queueUrls.length
+            total: this.queueUrls.length,
         }).catch(() => {
             // Ignore errors if no popup is listening
         });
+    }
+
+    async resumeQueueIfNeeded() {
+        try {
+            const state = await this.getQueueState();
+            if (state.isRunning) {
+                console.log(`🔄 Resuming queue at index ${state.currentIndex}/${state.urls.length}`);
+                this.processQueueInBackground();
+            }
+        } catch (error) {
+            console.error('Error resuming queue:', error);
+        }
+    }
+
+    // ======== STATE MANAGEMENT HELPERS ========
+    async getQueueState() {
+        const state = await chrome.storage.local.get([
+            'queue_isRunning', 
+            'queue_urls', 
+            'queue_current_index', 
+            'queue_start_time',
+            'queue_position_limit'
+        ]);
+        return {
+            isRunning: state.queue_isRunning || false,
+            urls: state.queue_urls || [],
+            currentIndex: state.queue_current_index || 0,
+            startTime: state.queue_start_time || null,
+            positionLimit: state.queue_position_limit || 10
+        };
+    }
+
+    async setQueueState(state) {
+        const stateToSave = {
+            'queue_isRunning': state.isRunning,
+            'queue_urls': state.urls,
+            'queue_current_index': state.currentIndex,
+            'queue_start_time': state.startTime,
+            'queue_position_limit': state.positionLimit
+        };
+        await chrome.storage.local.set(stateToSave);
+        
+        this.isQueueRunning = state.isRunning;
+        this.queueUrls = state.urls;
+        this.currentQueueIndex = state.currentIndex;
+        this.queueStartTime = state.startTime;
+    }
+
+    async clearQueueState() {
+        await chrome.storage.local.remove([
+            'queue_isRunning', 
+            'queue_urls', 
+            'queue_current_index', 
+            'queue_start_time',
+            'queue_position_limit'
+        ]);
+        
+        this.isQueueRunning = false;
+        this.queueUrls = [];
+        this.currentQueueIndex = 0;
+        this.queueStartTime = null;
     }
 }
 
