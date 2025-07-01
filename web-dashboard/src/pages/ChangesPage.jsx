@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import '../styles/ChangesPage.css'
-import { cachedApiCall } from '../utils/cache'
+import { cachedApiCall, invalidateCache } from '../utils/cache'
 
 const ChangesPage = ({ user, pocketbaseUrl }) => {
   const [loading, setLoading] = useState(false)
@@ -13,12 +13,16 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
   const [recommendations, setRecommendations] = useState([])
   const [showRecommendations, setShowRecommendations] = useState(false)
 
+  // Projects management
+  const [projects, setProjects] = useState([])
+  const [selectedProjectId, setSelectedProjectId] = useState('all')
+  const [loadingProjects, setLoadingProjects] = useState(false)
+
   useEffect(() => {
-    if (user?.id) {
-      loadAvailableDates()
-      loadKeywordDetails()
-    }
-  }, [user])
+    loadAvailableDates()
+    loadKeywordDetails()
+    loadProjects()
+  }, [])
 
   useEffect(() => {
     if (dateMode === 'auto' && availableDates.length >= 2) {
@@ -33,6 +37,18 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
       generateComparison()
     }
   }, [currentPeriod, previousPeriod])
+
+  // Reset analysis when project changes
+  useEffect(() => {
+    if (currentPeriod && previousPeriod) {
+      // Invaliduj cache dla positions i keywords przy zmianie projektu
+      invalidateCache('positions/records')
+      invalidateCache('keywords/records')
+      
+      console.log(`🔄 Cache invalidated for project change: ${selectedProjectId}`)
+      generateComparison()
+    }
+  }, [selectedProjectId])
 
   const loadAvailableDates = async () => {
     try {
@@ -82,6 +98,27 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
     } catch (error) {
       console.error('Error loading keyword details:', error)
       window.keywordDetailsMap = {}
+    }
+  }
+
+  const loadProjects = async () => {
+    setLoadingProjects(true)
+    try {
+      const data = await cachedApiCall(
+        `${pocketbaseUrl}/api/collections/projects/records?filter=userId="${user.id}"&sort=-created`,
+        {
+          headers: { 'Authorization': `Bearer ${user.token}` },
+          userId: user.id
+        },
+        5 * 60 * 1000 // 5 minutes cache
+      )
+      
+      setProjects(data.items || [])
+      console.log('📁 Załadowano projekty:', data.items?.length || 0)
+    } catch (error) {
+      console.error('❌ Błąd ładowania projektów:', error)
+    } finally {
+      setLoadingProjects(false)
     }
   }
 
@@ -135,6 +172,19 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
 
       console.log(`Current period: ${currentData.length} records, Previous period: ${previousData.length} records`)
 
+      // Sprawdź czy są jakiekolwiek dane
+      if (currentData.length === 0 && previousData.length === 0) {
+        console.log('⚠️ Brak danych dla wybranego projektu w obu okresach')
+        setCoverageData({
+          isEmpty: true,
+          message: `Brak danych dla wybranego projektu w okresach ${currentPeriod} i ${previousPeriod}`,
+          selectedProject: selectedProjectId
+        })
+        setAnalysisData({ isEmpty: true })
+        setRecommendations([])
+        return
+      }
+
       // Analiza pokrycia słów kluczowych
       const coverage = analyzeCoverage(currentData, previousData)
       setCoverageData(coverage)
@@ -155,15 +205,69 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
   }
 
   const fetchPeriodData = async (date) => {
-    const data = await cachedApiCall(
+    console.log(`🔄 Pobieranie danych dla daty ${date}, projekt: ${selectedProjectId}`)
+    
+    // 1. Pobierz wszystkie positions dla danej daty - bez cache przy filtrach projektów
+    const shouldUseCache = selectedProjectId === 'all'
+    const cacheTime = shouldUseCache ? 2 * 60 * 1000 : 0
+    
+    const positionsData = await cachedApiCall(
       `${pocketbaseUrl}/api/collections/positions/records?filter=userId="${user.id}"&&date="${date}"&sort=-date`,
       {
         headers: { 'Authorization': `Bearer ${user.token}` },
         userId: user.id
       },
-      2 * 60 * 1000
+      cacheTime
     )
-    return data.items
+    
+    // 2. Jeśli wybrano "Wszystkie projekty", zwróć wszystkie dane
+    if (selectedProjectId === 'all') {
+      console.log(`📊 Wszystkie projekty - zwracam ${positionsData.items.length} pozycji`)
+      return positionsData.items
+    }
+    
+    // 3. Pobierz keywords dla wybranego projektu - bez cache przy filtrach
+    // Pobieramy wszystkie keywords dla userId i filtrujemy w JS
+    const keywordsUrl = `${pocketbaseUrl}/api/collections/keywords/records?filter=userId="${user.id}"&perPage=5000`;
+    console.log(`🔍 Keywords URL: ${keywordsUrl}`);
+    
+    const keywordsData = await cachedApiCall(
+      keywordsUrl,
+      {
+        headers: { 'Authorization': `Bearer ${user.token}` },
+        userId: user.id
+      },
+      'keywords'
+    );
+    
+    console.log(`📋 Pobrano ${keywordsData?.items?.length || 0} słów kluczowych`);
+    
+    // Filtrujemy keywords po projectId w JS
+    let filteredKeywords = keywordsData?.items || [];
+    if (selectedProjectId !== 'all') {
+      if (selectedProjectId === 'none') {
+        filteredKeywords = filteredKeywords.filter(k => !k.projectId || k.projectId === '');
+        console.log(`🔍 Filtrowanie JS: ${filteredKeywords.length} słów kluczowych bez przypisanego projektu`);
+      } else {
+        filteredKeywords = filteredKeywords.filter(k => k.projectId === selectedProjectId);
+        console.log(`🔍 Filtrowanie JS: ${filteredKeywords.length} słów kluczowych dla projektu ${selectedProjectId}`);
+      }
+    }
+    
+    // Tworzymy zbiór dozwolonych słów kluczowych
+    const allowedKeywords = new Set();
+    filteredKeywords.forEach(k => allowedKeywords.add(k.keyword));
+    
+    // 5. Filtruj positions tylko dla dozwolonych keywords
+    const filteredPositions = positionsData.items.filter(pos => allowedKeywords.has(pos.keyword))
+    console.log(`📊 Przefiltrowane pozycje: ${filteredPositions.length}/${positionsData.items.length}`)
+    
+    // 6. Sprawdź czy są jakiekolwiek dane
+    if (filteredPositions.length === 0 && selectedProjectId !== 'all') {
+      console.log('⚠️ Brak danych dla wybranego projektu')
+    }
+    
+    return filteredPositions
   }
 
   const analyzeCoverage = (currentData, previousData) => {
@@ -446,6 +550,34 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
   const renderCoverageAnalysis = () => {
     if (!coverageData) return null
 
+    // Handle empty data case
+    if (coverageData.isEmpty) {
+      return (
+        <div className="analysis-section">
+          <h3>📊 Pokrycie danych</h3>
+          <div className="empty-data-message">
+            <div className="empty-icon">📭</div>
+            <h4>Brak danych dla wybranego projektu</h4>
+            <p>{coverageData.message}</p>
+            <div className="suggestions">
+              <p><strong>Możliwe przyczyny:</strong></p>
+              <ul>
+                <li>Brak słów kluczowych przypisanych do tego projektu</li>
+                <li>Brak skanowań dla wybranych okresów</li>
+                <li>Słowa kluczowe zostały dodane po tych datach</li>
+              </ul>
+              <p><strong>Sugestie:</strong></p>
+              <ul>
+                <li>Wybierz "Wszystkie projekty" żeby zobaczyć pełne dane</li>
+                <li>Sprawdź czy słowa kluczowe są przypisane do projektu</li>
+                <li>Wybierz inne okresy do porównania</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="coverage-analysis">
         <h3>📊 Analiza pokrycia słów kluczowych</h3>
@@ -502,6 +634,22 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
 
   const renderPositionChanges = () => {
     if (!analysisData) return null
+    
+    // Handle empty data case
+    if (analysisData.isEmpty) {
+      return null // Already handled in coverage section
+    }
+
+    if (analysisData.allChanges.length === 0) {
+      return (
+        <div className="analysis-section">
+          <h3>📈 Zmiany pozycji</h3>
+          <div className="empty-state">
+            <p>Brak wspólnych słów kluczowych między wybranymi okresami dla tego projektu.</p>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div className="position-changes">
@@ -584,13 +732,27 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
   }
 
   const renderTopProducts = () => {
-    if (!analysisData?.topProducts?.length) return null
+    if (!analysisData || analysisData.isEmpty) return null
+    
+    const { topProducts } = analysisData
+
+    if (!topProducts || topProducts.length === 0) {
+      return (
+        <div className="analysis-section">
+          <h3>🏆 Najczęściej pojawiające się produkty</h3>
+          <div className="empty-state">
+            <p>Brak produktów występujących w co najmniej 2 słowach kluczowych dla wybranego projektu.</p>
+            <p className="hint">💡 Spróbuj wybrać "Wszystkie projekty" lub inne okresy porównania.</p>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div className="top-products">
         <h3>🏆 Najczęściej pojawiające się produkty</h3>
         <div className="products-list">
-          {analysisData.topProducts.map((product, index) => (
+          {topProducts.map((product, index) => (
             <div key={index} className="product-item">
               <div className="product-rank">#{index + 1}</div>
               <div className="product-content">
@@ -751,17 +913,32 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
   }
 
   const renderTrendAnalysis = () => {
-    if (!analysisData) return null
+    if (!analysisData) return null;
+    
+    // Sprawdzamy czy mamy dane do analizy
+    if (!analysisData || 
+        analysisData.isEmpty || 
+        !analysisData.improvements || 
+        !analysisData.declines || 
+        analysisData.improvements.length === 0 && 
+        analysisData.declines.length === 0) {
+      return (
+        <div className="no-data-message">
+          <p>Brak danych do analizy trendów dla wybranego projektu.</p>
+          <p>Wybierz inny projekt lub sprawdź czy masz przypisane słowa kluczowe do tego projektu.</p>
+        </div>
+      );
+    }
 
-    const improvementData = analysisData.improvements.map(change => ({
+    const improvementData = analysisData && analysisData.improvements ? analysisData.improvements.map(change => ({
       label: change.keyword.substring(0, 20) + (change.keyword.length > 20 ? '...' : ''),
       value: change.positionChange
-    }))
+    })) : [];
 
-    const declineData = analysisData.declines.map(change => ({
+    const declineData = analysisData && analysisData.declines ? analysisData.declines.map(change => ({
       label: change.keyword.substring(0, 20) + (change.keyword.length > 20 ? '...' : ''),
       value: change.positionChange
-    }))
+    })) : [];
 
     return (
       <div className="trend-analysis">
@@ -909,8 +1086,39 @@ const ChangesPage = ({ user, pocketbaseUrl }) => {
   return (
     <div className="changes-page">
       <div className="page-header">
-        <h2>📊 Analiza zmian pozycji</h2>
-        <p>Porównanie wyników między różnymi okresami skanowania</p>
+        <h2>🔄 Analiza Zmian Pozycji</h2>
+        <p>Porównaj wyniki między różnymi okresami i analizuj trendy swoich produktów</p>
+      </div>
+
+      {/* Project selection */}
+      <div className="project-selection-section">
+        <h3>📁 Wybierz projekt</h3>
+        <div className="project-selector">
+          {loadingProjects ? (
+            <div className="loading-selector">⏳ Ładowanie projektów...</div>
+          ) : (
+            <select 
+              value={selectedProjectId} 
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="project-select"
+            >
+              <option value="all">🌐 Wszystkie projekty</option>
+              <option value="none">📝 Bez przypisanego projektu</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>
+                  🏷️ {project.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <span className="project-info">
+            {selectedProjectId === 'all' && '(Pokazuje dane ze wszystkich projektów)'}
+            {selectedProjectId === 'none' && '(Pokazuje słowa kluczowe bez przypisanego projektu)'}
+            {selectedProjectId !== 'all' && selectedProjectId !== 'none' && 
+              `(Filtruje dane dla: ${projects.find(p => p.id === selectedProjectId)?.name || 'Nieznany projekt'})`
+            }
+          </span>
+        </div>
       </div>
 
       {/* Kontrole wyboru daty */}
