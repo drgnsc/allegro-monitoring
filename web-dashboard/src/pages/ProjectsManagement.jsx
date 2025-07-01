@@ -43,8 +43,10 @@ const ProjectsManagement = ({ user, pocketbaseUrl }) => {
     
     try {
       const projectData = {
-        ...formData,
-        userId: user.id
+        name: formData.name,
+        description: formData.description,
+        userId: user.id,
+        isActive: formData.active  // Dodajemy isActive bo PocketBase tego oczekuje
       }
       
       console.log('Wysyłane dane projektu:', projectData)
@@ -58,7 +60,7 @@ const ProjectsManagement = ({ user, pocketbaseUrl }) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${user.token}`,
           },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(projectData)
         })
       } else {
         // Create new project
@@ -95,7 +97,7 @@ const ProjectsManagement = ({ user, pocketbaseUrl }) => {
     setFormData({
       name: project.name,
       description: project.description || '',
-      active: project.active !== false
+              active: project.isActive !== false
     })
     setShowCreateForm(true)
   }
@@ -221,11 +223,11 @@ const ProjectsManagement = ({ user, pocketbaseUrl }) => {
           ) : (
             <div className="projects-grid">
               {projects.map(project => (
-                <div key={project.id} className={`project-card ${!project.active ? 'inactive' : ''}`}>
+                <div key={project.id} className={`project-card ${!project.isActive ? 'inactive' : ''}`}>
                   <div className="project-header">
                     <h4>{project.name}</h4>
                     <div className="project-status">
-                      {project.active ? '🟢 Aktywny' : '🔴 Nieaktywny'}
+                      {project.isActive ? '🟢 Aktywny' : '🔴 Nieaktywny'}
                     </div>
                   </div>
                   

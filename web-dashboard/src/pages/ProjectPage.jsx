@@ -169,20 +169,27 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
 
   const addKeyword = async (e) => {
     e.preventDefault()
-    if (!newKeyword.trim() || !newMatchValue.trim()) return
+
+    if (!newKeyword.trim()) {
+      setError('Wprowadź słowo kluczowe')
+      return
+    }
+
+    if (!newMatchValue.trim()) {
+      setError('Wprowadź wartość dopasowania')
+      return
+    }
+
+    // Sprawdź duplikaty
+    const duplicate = checkForDuplicates(newKeyword.trim(), newMatchType, newMatchValue.trim(), selectedProjectId === 'all' || selectedProjectId === 'none' ? null : selectedProjectId)
+    if (duplicate) {
+      const projectInfo = duplicate.projectId ? `w projekcie` : 'bez przypisania do projektu'
+      setDuplicateWarning(`Kombinacja "${newKeyword.trim()}" + "${newMatchType}" + "${newMatchValue.trim()}" już istnieje ${projectInfo}. Czy chcesz dodać mimo to?`)
+      return
+    }
 
     setLoading(true)
     setError('')
-    setDuplicateWarning('')
-
-    // Sprawdź duplikaty przed dodaniem
-    const duplicate = checkForDuplicates(newKeyword.trim(), newMatchType, newMatchValue.trim())
-    if (duplicate) {
-      const projectInfo = duplicate.projectId ? `w projekcie` : 'bez przypisania do projektu'
-      setDuplicateWarning(`⚠️ Kombinacja "${newKeyword.trim()}" + "${newMatchType}" + "${newMatchValue.trim()}" już istnieje ${projectInfo}. Czy na pewno chcesz dodać duplikat?`)
-      setLoading(false)
-      return
-    }
 
     try {
       const payload = {
@@ -190,8 +197,7 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
         keyword: newKeyword.trim(),
         matchType: newMatchType,
         matchValue: newMatchValue.trim(),
-        active: true,
-        // created jest auto-generowane przez PocketBase
+        // active i created są auto-generowane przez PocketBase
       }
       
       // Dodaj projectId jeśli wybrano konkretny projekt
@@ -342,8 +348,7 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
           keyword: keyword,
           matchType: matchType,
           matchValue: matchValue,
-          active: true,
-          // created jest auto-generowane przez PocketBase
+          // active i created są auto-generowane przez PocketBase
         }
         
         // Dodaj projectId jeśli wybrano konkretny projekt
@@ -449,6 +454,8 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
   // Helper function for adding keyword without validation
   const addKeywordWithoutValidation = async () => {
     setLoading(true)
+    setError('')
+    setDuplicateWarning('')
 
     try {
       const payload = {
@@ -456,8 +463,7 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
         keyword: newKeyword.trim(),
         matchType: newMatchType,
         matchValue: newMatchValue.trim(),
-        active: true,
-        // created jest auto-generowane przez PocketBase
+        // active i created są auto-generowane przez PocketBase
       }
       
       // Dodaj projectId jeśli wybrano konkretny projekt
@@ -645,7 +651,7 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
             <option value="none">📝 Bez przypisanego projektu</option>
             {projects.map(project => (
               <option key={project.id} value={project.id}>
-                {project.active ? '🟢' : '🔴'} {project.name}
+                {project.isActive ? '🟢' : '🔴'} {project.name}
               </option>
             ))}
           </select>
