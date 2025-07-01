@@ -19,7 +19,7 @@ function App() {
   const [pocketbaseUrl] = useState(
     window.location.hostname === 'localhost' 
       ? 'https://api.pricelss.pl'  // Development - bezpośrednio do API
-      : '/api'                     // Production - przez Nginx proxy
+      : 'https://api.pricelss.pl'  // Production - bezpośrednio do API (fix)
   )
 
   useEffect(() => {
