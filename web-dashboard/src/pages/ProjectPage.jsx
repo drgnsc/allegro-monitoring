@@ -18,15 +18,21 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
   const [projects, setProjects] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('all')
   const [loadingProjects, setLoadingProjects] = useState(false)
+  // Search functionality
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredKeywords, setFilteredKeywords] = useState([])
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(100)
 
+  // Determine which keywords to display (filtered or all)
+  const displayKeywords = searchQuery.trim() ? filteredKeywords : keywords
+  
   // Pagination calculations
-  const totalPages = Math.ceil(keywords.length / itemsPerPage)
+  const totalPages = Math.ceil(displayKeywords.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentKeywords = keywords.slice(startIndex, endIndex)
+  const currentKeywords = displayKeywords.slice(startIndex, endIndex)
 
   const goToPage = (page) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)))
@@ -44,6 +50,38 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
   useEffect(() => {
     generateUrls()
   }, [keywords])
+
+  // Search/filter functionality with debounce
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredKeywords([])
+      setCurrentPage(1)
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      const query = searchQuery.toLowerCase().trim()
+      const filtered = keywords.filter(keyword => {
+        return (
+          keyword.keyword.toLowerCase().includes(query) ||
+          keyword.matchType.toLowerCase().includes(query) ||
+          keyword.matchValue.toLowerCase().includes(query) ||
+          (keyword.projectId && projects.find(p => p.id === keyword.projectId)?.name.toLowerCase().includes(query))
+        )
+      })
+      setFilteredKeywords(filtered)
+      setCurrentPage(1) // Reset to first page when searching
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery, keywords, projects])
+
+  // Reset search when project selection changes
+  useEffect(() => {
+    setSearchQuery('')
+    setFilteredKeywords([])
+    setCurrentPage(1)
+  }, [selectedProjectId])
 
   const loadProjects = async () => {
     setLoadingProjects(true)
@@ -179,11 +217,12 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
       const cacheKey = `${pocketbaseUrl}/api/collections/keywords/records?sort=-created`
       invalidateCache(cacheKey)
       
-      // Reset form
+      // Reset form and search
       setNewKeyword('')
       setNewMatchValue('')
       setNewMatchType('title')
       setDuplicateWarning('')
+      setSearchQuery('') // Clear search when adding new keyword
     } catch (error) {
       console.error('Szczegółowy błąd dodawania keyword:', error)
       console.error('Response status:', error.status)
@@ -346,6 +385,7 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
         const cacheKey = `${pocketbaseUrl}/api/collections/keywords/records?sort=-created`
         invalidateCache(cacheKey)
         await loadKeywords()
+        setSearchQuery('') // Clear search after import
         console.log('✅ Lista keywords odświeżona')
       }
 
@@ -431,11 +471,12 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
       const cacheKey = `${pocketbaseUrl}/api/collections/keywords/records?sort=-created`
       invalidateCache(cacheKey)
       
-      // Reset form
+      // Reset form and search
       setNewKeyword('')
       setNewMatchValue('')
       setNewMatchType('title')
       setDuplicateWarning('')
+      setSearchQuery('') // Clear search when adding new keyword
     } catch (error) {
       console.error('Błąd dodawania keyword:', error)
       setError('Błąd dodawania słowa kluczowego: ' + error.message)
@@ -657,11 +698,11 @@ wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta s
       {/* Lista słów kluczowych */}
       <div className="keywords-section">
         <div className="keywords-header">
-          <h3>📝 Lista słów kluczowych ({keywords.length}/1000)</h3>
+          <h3>📝 Lista słów kluczowych ({displayKeywords.length}{searchQuery.trim() ? ` z ${keywords.length}` : ''}/1000)</h3>
           <div className="header-controls">
-            {keywords.length > itemsPerPage && (
+            {displayKeywords.length > itemsPerPage && (
               <div className="pagination-info">
-                Strona {currentPage} z {totalPages} (pozycje {startIndex + 1}-{Math.min(endIndex, keywords.length)})
+                Strona {currentPage} z {totalPages} (pozycje {startIndex + 1}-{Math.min(endIndex, displayKeywords.length)})
               </div>
             )}
             <button 
@@ -680,6 +721,44 @@ wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta s
             </button>
           </div>
         </div>
+
+        {/* Search bar */}
+        {keywords.length > 0 && (
+          <div className="search-section">
+            <div className="search-container">
+              <div className="search-input-wrapper">
+                <span className="search-icon">🔍</span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Szukaj w słowach kluczowych, typach dopasowania, wartościach lub projektach..."
+                  className="search-input"
+                />
+                {searchQuery.trim() && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="search-clear"
+                    title="Wyczyść wyszukiwanie"
+                  >
+                    ❌
+                  </button>
+                )}
+              </div>
+              {searchQuery.trim() && (
+                <div className="search-results-info">
+                  {filteredKeywords.length === 0 ? (
+                    <span className="no-results">Brak wyników dla "{searchQuery}"</span>
+                  ) : (
+                    <span className="results-count">
+                      Znaleziono {filteredKeywords.length} z {keywords.length} słów kluczowych
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         
         {keywords.length === 0 ? (
           <div className="empty-state">
@@ -719,7 +798,7 @@ wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta s
               ))}
             </div>
             
-            {keywords.length > itemsPerPage && (
+            {displayKeywords.length > itemsPerPage && (
               <div className="pagination">
                 <button 
                   onClick={() => goToPage(1)} 
