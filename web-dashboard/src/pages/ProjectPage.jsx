@@ -191,7 +191,7 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
         matchType: newMatchType,
         matchValue: newMatchValue.trim(),
         active: true,
-        created: new Date().toISOString(),
+        // created jest auto-generowane przez PocketBase
       }
       
       // Dodaj projectId jeśli wybrano konkretny projekt
@@ -343,7 +343,7 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
           matchType: matchType,
           matchValue: matchValue,
           active: true,
-          created: new Date().toISOString(),
+          // created jest auto-generowane przez PocketBase
         }
         
         // Dodaj projectId jeśli wybrano konkretny projekt
@@ -457,7 +457,7 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
         matchType: newMatchType,
         matchValue: newMatchValue.trim(),
         active: true,
-        created: new Date().toISOString(),
+        // created jest auto-generowane przez PocketBase
       }
       
       // Dodaj projectId jeśli wybrano konkretny projekt

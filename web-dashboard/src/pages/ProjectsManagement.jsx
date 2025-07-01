@@ -44,9 +44,10 @@ const ProjectsManagement = ({ user, pocketbaseUrl }) => {
     try {
       const projectData = {
         ...formData,
-        userId: user.id,
-        created: new Date().toISOString()
+        userId: user.id
       }
+      
+      console.log('Wysyłane dane projektu:', projectData)
       
       let response
       if (editingProject) {
@@ -72,15 +73,20 @@ const ProjectsManagement = ({ user, pocketbaseUrl }) => {
       }
       
       if (response.ok) {
+        const result = await response.json()
+        console.log('Projekt utworzony/zaktualizowany:', result)
         setFormData({ name: '', description: '', active: true })
         setShowCreateForm(false)
         setEditingProject(null)
         loadProjects()
       } else {
-        console.error('Error saving project:', response.statusText)
+        const errorData = await response.text()
+        console.error('Error saving project:', response.statusText, errorData)
+        alert(`Błąd podczas zapisywania projektu: ${response.statusText}\n${errorData}`)
       }
     } catch (error) {
       console.error('Error saving project:', error)
+      alert(`Błąd podczas zapisywania projektu: ${error.message}`)
     }
   }
 

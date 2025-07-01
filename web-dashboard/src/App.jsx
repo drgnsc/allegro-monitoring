@@ -18,8 +18,8 @@ function App() {
   // Automatyczne przełączanie między dev i prod
   const [pocketbaseUrl] = useState(
     window.location.hostname === 'localhost' 
-      ? 'https://api.pricelss.pl'  // Development - bezpośrednio do API
-      : 'https://api.pricelss.pl'  // Production - bezpośrednio do API (fix)
+      ? 'http://127.0.0.1:8090'  // Development - lokalny PocketBase
+      : 'https://api.pricelss.pl'  // Production - produkcyjne API
   )
 
   useEffect(() => {
