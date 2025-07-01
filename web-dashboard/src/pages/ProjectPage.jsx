@@ -24,6 +24,9 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(100)
+  // Bulk operations
+  const [selectAll, setSelectAll] = useState(false)
+  const [bulkLoading, setBulkLoading] = useState(false)
 
   // Determine which keywords to display (filtered or all)
   const displayKeywords = searchQuery.trim() ? filteredKeywords : keywords
@@ -81,7 +84,13 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
     setSearchQuery('')
     setFilteredKeywords([])
     setCurrentPage(1)
+    setSelectAll(false) // Reset bulk selection when changing projects
   }, [selectedProjectId])
+
+  // Reset bulk selection when search changes
+  useEffect(() => {
+    setSelectAll(false)
+  }, [searchQuery])
 
   const loadProjects = async () => {
     setLoadingProjects(true)
@@ -433,8 +442,13 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
 
   // Funkcja dodawania słowa kluczowego mimo ostrzeżenia o duplikacie
   const addKeywordForcibly = async () => {
-    setLoading(true)
     setDuplicateWarning('')
+    await addKeywordWithoutValidation()
+  }
+
+  // Helper function for adding keyword without validation
+  const addKeywordWithoutValidation = async () => {
+    setLoading(true)
 
     try {
       const payload = {
@@ -459,7 +473,7 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
         },
         body: JSON.stringify(payload),
       })
-
+      
       if (!response.ok) {
         throw new Error('Błąd dodawania słowa kluczowego')
       }
@@ -477,12 +491,135 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
       setNewMatchType('title')
       setDuplicateWarning('')
       setSearchQuery('') // Clear search when adding new keyword
+      
     } catch (error) {
       console.error('Błąd dodawania keyword:', error)
       setError('Błąd dodawania słowa kluczowego: ' + error.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Bulk operations functions
+  const handleSelectAll = () => {
+    setSelectAll(!selectAll)
+  }
+
+  const deleteAllSelected = async () => {
+    if (!selectAll) return
+    
+    const keywordsToDelete = searchQuery.trim() ? filteredKeywords : displayKeywords
+    
+    if (keywordsToDelete.length === 0) {
+      alert('Brak słów kluczowych do usunięcia.')
+      return
+    }
+
+    const confirmMessage = searchQuery.trim() 
+      ? `Czy na pewno chcesz usunąć ${keywordsToDelete.length} wyszukanych słów kluczowych?`
+      : `Czy na pewno chcesz usunąć wszystkie ${keywordsToDelete.length} słów kluczowych w tym projekcie?`
+    
+    if (!confirm(confirmMessage)) return
+
+    setBulkLoading(true)
+    try {
+      let successCount = 0
+      let errorCount = 0
+      
+      for (const keyword of keywordsToDelete) {
+        try {
+          const response = await fetch(`${pocketbaseUrl}/api/collections/keywords/records/${keyword.id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${user.token}`,
+            },
+          })
+          
+          if (response.ok) {
+            successCount++
+          } else {
+            errorCount++
+            console.error(`Błąd usuwania keyword ${keyword.id}:`, response.statusText)
+          }
+        } catch (error) {
+          errorCount++
+          console.error(`Błąd usuwania keyword ${keyword.id}:`, error)
+        }
+      }
+      
+      // Odśwież listę słów kluczowych
+      await loadKeywords()
+      setSelectAll(false)
+      
+      // Pokaż wyniki
+      if (errorCount > 0) {
+        alert(`Usunięto ${successCount} słów kluczowych. Błędów: ${errorCount}`)
+      } else {
+        alert(`Pomyślnie usunięto ${successCount} słów kluczowych.`)
+      }
+      
+    } catch (error) {
+      console.error('Błąd podczas masowego usuwania:', error)
+      alert('Wystąpił błąd podczas usuwania słów kluczowych.')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const exportSelectedKeywords = () => {
+    const keywordsToExport = searchQuery.trim() ? filteredKeywords : displayKeywords
+    
+    if (keywordsToExport.length === 0) {
+      alert('Brak słów kluczowych do eksportu.')
+      return
+    }
+
+    // Przygotuj dane CSV
+    const csvHeader = 'Słowo kluczowe,Typ dopasowania,Wartość,Projekt,Data dodania\n'
+    const csvData = keywordsToExport.map(keyword => {
+      const projectName = keyword.projectId 
+        ? projects.find(p => p.id === keyword.projectId)?.name || 'Nieznany projekt'
+        : 'Bez projektu'
+      
+      const date = new Date(keyword.created).toLocaleDateString('pl-PL')
+      
+      // Escape commas and quotes in CSV
+      const escapeField = (field) => {
+        if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+          return `"${field.replace(/"/g, '""')}"`
+        }
+        return field
+      }
+      
+      return [
+        escapeField(keyword.keyword),
+        escapeField(keyword.matchType),
+        escapeField(keyword.matchValue),
+        escapeField(projectName),
+        escapeField(date)
+      ].join(',')
+    }).join('\n')
+
+    const csvContent = csvHeader + csvData
+    
+    // Pobierz plik
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    
+    const filename = searchQuery.trim() 
+      ? `slowa-kluczowe-wyszukane-${new Date().toISOString().split('T')[0]}.csv`
+      : `slowa-kluczowe-${selectedProjectId === 'all' ? 'wszystkie' : 'projekt'}-${new Date().toISOString().split('T')[0]}.csv`
+    
+    link.setAttribute('download', filename)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // Pokaż potwierdzenie
+    alert(`Wyeksportowano ${keywordsToExport.length} słów kluczowych do pliku ${filename}`)
   }
 
   return (
@@ -766,6 +903,45 @@ wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta s
           </div>
         ) : (
           <>
+            {/* Bulk operations section */}
+            <div className="bulk-operations">
+              <div className="bulk-select">
+                <label className="bulk-select-label">
+                  <input 
+                    type="checkbox" 
+                    checked={selectAll} 
+                    onChange={handleSelectAll}
+                    className="bulk-checkbox"
+                  />
+                  <span className="bulk-select-text">
+                    Zaznacz wszystkie ({displayKeywords.length} 
+                    {searchQuery.trim() && ` z ${keywords.length}`})
+                  </span>
+                </label>
+              </div>
+              
+              {selectAll && (
+                <div className="bulk-actions">
+                  <button 
+                    onClick={deleteAllSelected} 
+                    className="bulk-delete-btn"
+                    disabled={bulkLoading}
+                    title={`Usuń ${displayKeywords.length} zaznaczonych słów kluczowych`}
+                  >
+                    {bulkLoading ? '⏳ Usuwanie...' : '🗑️ Usuń wszystkie'}
+                  </button>
+                  <button 
+                    onClick={exportSelectedKeywords} 
+                    className="bulk-export-btn"
+                    disabled={bulkLoading}
+                    title={`Eksportuj ${displayKeywords.length} słów kluczowych do CSV`}
+                  >
+                    💾 Eksportuj do CSV
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="keywords-table">
               <div className="table-header">
                 <div>Słowo kluczowe</div>

@@ -1085,3 +1085,115 @@
     padding: 12px;
   }
 }
+
+/* Bulk operations section */
+.bulk-operations {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.bulk-select {
+  display: flex;
+  align-items: center;
+}
+
+.bulk-select-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  color: #2d3748;
+  font-size: 0.95rem;
+}
+
+.bulk-checkbox {
+  width: 18px;
+  height: 18px;
+  margin-right: 0.5rem;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.bulk-select-text {
+  user-select: none;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.bulk-delete-btn,
+.bulk-export-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.bulk-delete-btn {
+  background: #f56565;
+  color: white;
+}
+
+.bulk-delete-btn:hover:not(:disabled) {
+  background: #e53e3e;
+  transform: translateY(-1px);
+}
+
+.bulk-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.bulk-export-btn {
+  background: #48bb78;
+  color: white;
+}
+
+.bulk-export-btn:hover:not(:disabled) {
+  background: #38a169;
+  transform: translateY(-1px);
+}
+
+.bulk-export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive design for bulk operations */
+@media (max-width: 640px) {
+  .bulk-operations {
+    padding: 0.75rem;
+  }
+  
+  .bulk-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .bulk-delete-btn,
+  .bulk-export-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .bulk-select-label {
+    font-size: 0.9rem;
+  }
+}
