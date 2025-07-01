@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { BarChart3, Target, TrendingUp, Settings, Coffee, Heart, X } from 'lucide-react'
+import { BarChart3, Target, TrendingUp, Settings, Coffee, Heart, X, Download, Chrome } from 'lucide-react'
 
 function Navbar() {
   const location = useLocation()
@@ -102,14 +102,27 @@ function Navbar() {
                 </li>
               </ul>
               
-              <button 
-                className="coffee-support-btn"
-                onClick={() => setShowCoffeeModal(true)}
-                title="Wspieraj projekt"
-              >
-                <Coffee size={16} />
-                <Heart size={14} className="heart-icon" />
-              </button>
+              <div className="nav-actions">
+                <a 
+                  href="http://pricelss.pl/pliki/wtyczka.zip"
+                  className="download-extension-btn"
+                  title="Pobierz wtyczkę Chrome"
+                  download
+                >
+                  <Chrome size={16} />
+                  <Download size={14} className="download-icon" />
+                  <span className="btn-text">Wtyczka</span>
+                </a>
+                
+                <button 
+                  className="coffee-support-btn"
+                  onClick={() => setShowCoffeeModal(true)}
+                  title="Wspieraj projekt"
+                >
+                  <Coffee size={16} />
+                  <Heart size={14} className="heart-icon" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

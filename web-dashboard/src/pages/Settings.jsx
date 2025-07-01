@@ -3,7 +3,7 @@ import { Settings as SettingsIcon, Save, RefreshCw, Database, Bell, Shield } fro
 
 function Settings() {
   const [settings, setSettings] = useState({
-    apiUrl: 'http://localhost:8090',
+    apiUrl: 'https://api.pricelss.pl',
     email: 'test@allegro-monitor.com',
     autoScan: true,
     scanInterval: 30,
@@ -62,7 +62,7 @@ function Settings() {
                   borderRadius: '5px',
                   fontSize: '14px'
                 }}
-                placeholder="http://localhost:8090"
+                placeholder="https://api.pricelss.pl"
               />
             </div>
             

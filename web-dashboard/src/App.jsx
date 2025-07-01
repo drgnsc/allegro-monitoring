@@ -8,14 +8,19 @@ import LatestResultsPage from './pages/LatestResultsPage'
 import ChangesPage from './pages/ChangesPage'
 import MonthlyReportPage from './pages/MonthlyReportPage'
 import { clearAllCache } from './utils/cache'
-import { Coffee, Heart, X } from 'lucide-react'
+import { Coffee, Heart, X, Download, Chrome } from 'lucide-react'
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [user, setUser] = useState(null)
   const [activeTab, setActiveTab] = useState('projects-management')
   const [showCoffeeModal, setShowCoffeeModal] = useState(false)
-  const [pocketbaseUrl] = useState('http://localhost:8090') // Zmienić na produkcyjny URL
+  // Automatyczne przełączanie między dev i prod
+  const [pocketbaseUrl] = useState(
+    window.location.hostname === 'localhost' 
+      ? 'https://api.pricelss.pl'  // Development - bezpośrednio do API
+      : '/api'                     // Production - przez Nginx proxy
+  )
 
   useEffect(() => {
     // Sprawdź czy użytkownik jest zalogowany
@@ -153,15 +158,26 @@ function App() {
             <h1>🎯 Allegro Position Monitor</h1>
             <div className="user-info">
               <span>Zalogowany: {user?.email}</span>
-              <button 
-                className="coffee-support-btn"
-                onClick={() => setShowCoffeeModal(true)}
-                title="Wspieraj projekt"
-              >
-                <Coffee size={16} />
-                <Heart size={14} className="heart-icon" />
-              </button>
-              <button onClick={handleLogout} className="logout-btn">Wyloguj</button>
+                              <a 
+                  href="http://pricelss.pl/pliki/wtyczka.zip"
+                  className="download-extension-btn"
+                  title="Pobierz wtyczkę Chrome"
+                  download
+                >
+                  <Chrome size={16} />
+                  <Download size={14} className="download-icon" />
+                  <span className="btn-text">Wtyczka</span>
+                </a>
+                
+                <button 
+                  className="coffee-support-btn"
+                  onClick={() => setShowCoffeeModal(true)}
+                  title="Wspieraj projekt"
+                >
+                  <Coffee size={16} />
+                  <Heart size={14} className="heart-icon" />
+                </button>
+                <button onClick={handleLogout} className="logout-btn">Wyloguj</button>
             </div>
           </div>
           

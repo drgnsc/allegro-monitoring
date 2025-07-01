@@ -3,7 +3,7 @@
 
 class AllegroMonitorBackground {
     constructor() {
-        this.pocketbaseUrl = 'http://localhost:8090'; // Będzie zmieniony na produkcyjny URL
+        this.pocketbaseUrl = 'https://api.pricelss.pl'; // Produkcyjny URL
         this.pb = null;
         this.isAuthenticated = false;
         this.currentUser = null;

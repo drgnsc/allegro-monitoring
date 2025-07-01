@@ -291,7 +291,7 @@ class AllegroContentParser {
                 } else if (errorMessage.includes('auth') || errorMessage.includes('login')) {
                     errorMessage = 'Sesja wygasła. Otwórz popup rozszerzenia i zaloguj się ponownie.';
                 } else if (errorMessage.includes('fetch') || errorMessage.includes('połączenia')) {
-                    errorMessage = 'Błąd połączenia z serwerem. Sprawdź czy PocketBase jest uruchomiony na localhost:8090.';
+                    errorMessage = 'Błąd połączenia z serwerem. Sprawdź połączenie internetowe i czy serwer API jest dostępny.';
                 }
                 
                 throw new Error(errorMessage);

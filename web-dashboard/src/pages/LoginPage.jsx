@@ -13,6 +13,8 @@ const LoginPage = ({ onLogin, pocketbaseUrl }) => {
     setError('')
 
     try {
+      console.log('Próba logowania na:', `${pocketbaseUrl}/api/collections/users/auth-with-password`)
+      
       const response = await fetch(`${pocketbaseUrl}/api/collections/users/auth-with-password`, {
         method: 'POST',
         headers: {
@@ -24,12 +26,22 @@ const LoginPage = ({ onLogin, pocketbaseUrl }) => {
         }),
       })
 
+      console.log('Odpowiedź serwera:', response.status, response.statusText)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Błąd logowania')
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.message || errorMessage
+        } catch (parseError) {
+          console.error('Nie można sparsować błędu:', parseError)
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
+      console.log('Logowanie udane:', data.record.email)
+      
       onLogin({
         id: data.record.id,
         email: data.record.email,
@@ -37,7 +49,15 @@ const LoginPage = ({ onLogin, pocketbaseUrl }) => {
       })
     } catch (error) {
       console.error('Login error:', error)
-      setError('Błąd logowania: ' + error.message)
+      
+      // Sprawdź czy to problem z CORS
+      if (error.message.includes('CORS') || error.message.includes('Network')) {
+        setError('Błąd połączenia z serwerem. Sprawdź czy serwer API jest dostępny i obsługuje CORS.')
+      } else if (error.message.includes('Failed to fetch')) {
+        setError('Nie można połączyć się z serwerem API. Sprawdź połączenie internetowe.')
+      } else {
+        setError('Błąd logowania: ' + error.message)
+      }
     } finally {
       setLoading(false)
     }
