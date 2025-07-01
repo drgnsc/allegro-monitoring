@@ -9,6 +9,7 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
   const [newMatchValue, setNewMatchValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [duplicateWarning, setDuplicateWarning] = useState('')
   const [generatedUrls, setGeneratedUrls] = useState([])
   const [importLoading, setImportLoading] = useState(false)
   const [importResults, setImportResults] = useState(null)
@@ -125,6 +126,16 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
 
     setLoading(true)
     setError('')
+    setDuplicateWarning('')
+
+    // Sprawdź duplikaty przed dodaniem
+    const duplicate = checkForDuplicates(newKeyword.trim(), newMatchType, newMatchValue.trim())
+    if (duplicate) {
+      const projectInfo = duplicate.projectId ? `w projekcie` : 'bez przypisania do projektu'
+      setDuplicateWarning(`⚠️ Kombinacja "${newKeyword.trim()}" + "${newMatchType}" + "${newMatchValue.trim()}" już istnieje ${projectInfo}. Czy na pewno chcesz dodać duplikat?`)
+      setLoading(false)
+      return
+    }
 
     try {
       const payload = {
@@ -172,6 +183,7 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
       setNewKeyword('')
       setNewMatchValue('')
       setNewMatchType('title')
+      setDuplicateWarning('')
     } catch (error) {
       console.error('Szczegółowy błąd dodawania keyword:', error)
       console.error('Response status:', error.status)
@@ -268,6 +280,14 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
           errors.push(`Linia ${index + 1}: Nieprawidłowy typ dopasowania "${matchType}"`)
           return
         }
+
+        // Sprawdź duplikaty przed dodaniem do listy importu
+        const duplicate = checkForDuplicates(keyword, matchType, matchValue)
+        if (duplicate) {
+          const projectInfo = duplicate.projectId ? `w projekcie` : 'bez przypisania do projektu'
+          errors.push(`Linia ${index + 1}: Kombinacja "${keyword}" + "${matchType}" + "${matchValue}" już istnieje ${projectInfo} - pominięto`)
+          return
+        }
         
         const keywordData = {
           userId: user.id,
@@ -352,6 +372,78 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
     URL.revokeObjectURL(url)
   }
 
+  // Funkcja sprawdzająca duplikaty słów kluczowych
+  const checkForDuplicates = (keyword, matchType, matchValue, projectId = null) => {
+    // Określ docelowy projectId dla porównania
+    const targetProjectId = projectId || (selectedProjectId && selectedProjectId !== 'all' && selectedProjectId !== 'none' ? selectedProjectId : null)
+    
+    // Sprawdź duplikaty w istniejących słowach kluczowych
+    const duplicate = keywords.find(existingKeyword => {
+      const existingProjectId = existingKeyword.projectId || null
+      
+      // Porównaj wszystkie kryteria
+      return existingKeyword.keyword.toLowerCase().trim() === keyword.toLowerCase().trim() &&
+             existingKeyword.matchType === matchType &&
+             existingKeyword.matchValue.toLowerCase().trim() === matchValue.toLowerCase().trim() &&
+             existingProjectId === targetProjectId
+    })
+    
+    return duplicate
+  }
+
+  // Funkcja dodawania słowa kluczowego mimo ostrzeżenia o duplikacie
+  const addKeywordForcibly = async () => {
+    setLoading(true)
+    setDuplicateWarning('')
+
+    try {
+      const payload = {
+        userId: user.id,
+        keyword: newKeyword.trim(),
+        matchType: newMatchType,
+        matchValue: newMatchValue.trim(),
+        active: true,
+        created: new Date().toISOString(),
+      }
+      
+      // Dodaj projectId jeśli wybrano konkretny projekt
+      if (selectedProjectId && selectedProjectId !== 'all' && selectedProjectId !== 'none') {
+        payload.projectId = selectedProjectId
+      }
+      
+      const response = await fetch(`${pocketbaseUrl}/api/collections/keywords/records`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        throw new Error('Błąd dodawania słowa kluczowego')
+      }
+
+      const newKeywordData = await response.json()
+      setKeywords([newKeywordData, ...keywords])
+      
+      // Invaliduj cache dla keywords
+      const cacheKey = `${pocketbaseUrl}/api/collections/keywords/records?sort=-created`
+      invalidateCache(cacheKey)
+      
+      // Reset form
+      setNewKeyword('')
+      setNewMatchValue('')
+      setNewMatchType('title')
+      setDuplicateWarning('')
+    } catch (error) {
+      console.error('Błąd dodawania keyword:', error)
+      setError('Błąd dodawania słowa kluczowego: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="project-page">
       <div className="page-header">
@@ -415,6 +507,19 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
         
         <form onSubmit={addKeyword} className="keyword-form">
           {error && <div className="error-message">{error}</div>}
+          {duplicateWarning && (
+            <div className="duplicate-warning">
+              {duplicateWarning}
+              <div className="duplicate-actions">
+                <button type="button" onClick={addKeywordForcibly} className="add-anyway-btn" disabled={loading}>
+                  {loading ? 'Dodawanie...' : 'Dodaj mimo to'}
+                </button>
+                <button type="button" onClick={() => setDuplicateWarning('')} className="cancel-btn">
+                  Anuluj
+                </button>
+              </div>
+            </div>
+          )}
           
           <div className="form-row">
             <div className="form-group">
