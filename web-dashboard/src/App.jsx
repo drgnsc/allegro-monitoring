@@ -159,7 +159,7 @@ function App() {
             <div className="user-info">
               <span>Zalogowany: {user?.email}</span>
                               <a 
-                  href="http://pricelss.pl/pliki/wtyczka.zip"
+                  href="https://pricelss.pl/pliki/wtyczka.zip"
                   className="download-extension-btn"
                   title="Pobierz wtyczkę Chrome"
                   download

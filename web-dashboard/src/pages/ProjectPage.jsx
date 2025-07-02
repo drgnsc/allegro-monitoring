@@ -698,29 +698,28 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
     return { hasUserId: true, hasProjectId: true }
   }
 
-  // Funkcja do przygotowania payload zgodnie ze schematem
+  // Funkcja do przygotowania payload zgodnie ze schematem PRODUKCYJNYM
   const prepareKeywordPayload = async (keyword, matchType, matchValue, projectId = null) => {
-    const schema = await detectKeywordsSchema()
-    
+    // Z błędów produkcyjnych widzimy że wymaga: isActive, projectId, url
     const payload = {
       keyword: keyword.trim(),
       matchType: matchType,
       matchValue: matchValue.trim(),
+      // POLA WYMAGANE W PRODUKCJI:
+      isActive: true,           // Zawsze aktywne
+      url: '',                  // Puste URL jako default
+      userId: user.id,          // ID użytkownika
     }
 
-    // Dodaj userId tylko jeśli schemat go wspiera
-    if (schema.hasUserId) {
-      payload.userId = user.id
-    }
-
-    // Dodaj projectId tylko jeśli schemat go wspiera i mamy wartość
-    if (schema.hasProjectId && projectId && projectId !== 'all' && projectId !== 'none') {
+    // ProjectId jest WYMAGANE w produkcji
+    if (projectId && projectId !== 'all' && projectId !== 'none') {
       payload.projectId = projectId
+    } else {
+      // Jeśli nie wybrano projektu, ustaw na null (może być wymagane)
+      payload.projectId = null
     }
 
-    console.log('📦 Przygotowany payload:', payload)
-    console.log('🔧 Schemat bazy:', schema)
-    
+    console.log('📦 Payload dla PRODUKCJI:', payload)
     return payload
   }
 

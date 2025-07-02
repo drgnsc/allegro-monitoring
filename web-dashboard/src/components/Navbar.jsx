@@ -104,7 +104,7 @@ function Navbar() {
               
               <div className="nav-actions">
                 <a 
-                  href="http://pricelss.pl/pliki/wtyczka.zip"
+                  href="https://pricelss.pl/pliki/wtyczka.zip"
                   className="download-extension-btn"
                   title="Pobierz wtyczkę Chrome"
                   download
