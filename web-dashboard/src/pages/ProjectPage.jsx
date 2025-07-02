@@ -192,18 +192,7 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
     setError('')
 
     try {
-      const payload = {
-        userId: user.id,
-        keyword: newKeyword.trim(),
-        matchType: newMatchType,
-        matchValue: newMatchValue.trim(),
-        // active i created są auto-generowane przez PocketBase
-      }
-      
-      // Dodaj projectId jeśli wybrano konkretny projekt
-      if (selectedProjectId && selectedProjectId !== 'all' && selectedProjectId !== 'none') {
-        payload.projectId = selectedProjectId
-      }
+      const payload = await prepareKeywordPayload(newKeyword, newMatchType, newMatchValue, selectedProjectId)
       
       console.log('Wysyłam do PocketBase:', payload)
       console.log('URL:', `${pocketbaseUrl}/api/collections/keywords/records`)
@@ -219,10 +208,38 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
       })
       
       console.log('Response status:', response.status)
-      console.log('Response headers:', response.headers)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
-        throw new Error('Błąd dodawania słowa kluczowego')
+        const errorText = await response.text()
+        console.error('❌ API Error Response:', errorText)
+        
+        let errorMessage = 'Błąd dodawania słowa kluczowego'
+        
+        if (response.status === 404) {
+          errorMessage = 'Collection "keywords" nie istnieje w PocketBase. Zaimportuj schema!'
+        } else if (response.status === 401 || response.status === 403) {
+          errorMessage = 'Błąd autoryzacji. Zaloguj się ponownie.'
+        } else if (response.status === 400) {
+          // Spróbuj sparsować szczegółowy błąd z PocketBase
+          try {
+            const errorData = JSON.parse(errorText)
+            if (errorData.data) {
+              const fieldErrors = Object.entries(errorData.data).map(([field, error]) => 
+                `${field}: ${error.message || error.code}`
+              ).join(', ')
+              errorMessage = `Błąd walidacji: ${fieldErrors}`
+            } else {
+              errorMessage = `Błąd walidacji danych (400): ${errorData.message || 'Sprawdź czy wszystkie pola są wypełnione'}`
+            }
+          } catch (parseError) {
+            errorMessage = `Błąd walidacji danych (400): ${errorText || 'Sprawdź czy wszystkie pola są wypełnione'}`
+          }
+        } else {
+          errorMessage = `Błąd serwera (${response.status}): ${errorText}`
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const newKeywordData = await response.json()
@@ -238,21 +255,10 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
       setNewMatchType('title')
       setDuplicateWarning('')
       setSearchQuery('') // Clear search when adding new keyword
+      
     } catch (error) {
-      console.error('Szczegółowy błąd dodawania keyword:', error)
-      console.error('Response status:', error.status)
-      console.error('Response text:', error.responseText)
-      
-      let errorMessage = 'Błąd dodawania słowa kluczowego'
-      if (error.message.includes('404')) {
-        errorMessage = 'Collection "keywords" nie istnieje w PocketBase. Zaimportuj schema!'
-      } else if (error.message.includes('401') || error.message.includes('403')) {
-        errorMessage = 'Błąd autoryzacji. Zaloguj się ponownie.'
-      } else if (error.message.includes('400')) {
-        errorMessage = 'Błąd walidacji danych. Sprawdź czy wszystkie pola są wypełnione.'
-      }
-      
-      setError('Błąd: ' + errorMessage + ' (' + error.message + ')')
+      console.error('❌ Szczegółowy błąd dodawania keyword:', error)
+      setError(error.message)
     } finally {
       setLoading(false)
     }
@@ -320,19 +326,20 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
       const keywordsToImport = []
       const errors = []
       
-      lines.forEach((line, index) => {
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index]
         // Obsługa zarówno przecinków jak i tabulatorów jako separatorów
         const separator = line.includes('\t') ? '\t' : ','
         const [keyword, matchType, matchValue] = line.split(separator).map(item => item.trim())
         
         if (!keyword || !matchType || !matchValue) {
           errors.push(`Linia ${index + 1}: Niepełne dane`)
-          return
+          continue
         }
         
         if (!['url', 'title', 'brand'].includes(matchType)) {
           errors.push(`Linia ${index + 1}: Nieprawidłowy typ dopasowania "${matchType}"`)
-          return
+          continue
         }
 
         // Sprawdź duplikaty przed dodaniem do listy importu
@@ -340,24 +347,12 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
         if (duplicate) {
           const projectInfo = duplicate.projectId ? `w projekcie` : 'bez przypisania do projektu'
           errors.push(`Linia ${index + 1}: Kombinacja "${keyword}" + "${matchType}" + "${matchValue}" już istnieje ${projectInfo} - pominięto`)
-          return
+          continue
         }
         
-        const keywordData = {
-          userId: user.id,
-          keyword: keyword,
-          matchType: matchType,
-          matchValue: matchValue,
-          // active i created są auto-generowane przez PocketBase
-        }
-        
-        // Dodaj projectId jeśli wybrano konkretny projekt
-        if (selectedProjectId && selectedProjectId !== 'all' && selectedProjectId !== 'none') {
-          keywordData.projectId = selectedProjectId
-        }
-        
+        const keywordData = await prepareKeywordPayload(keyword, matchType, matchValue, selectedProjectId)
         keywordsToImport.push(keywordData)
-      })
+      }
 
       // Import keywords
       let successCount = 0
@@ -377,7 +372,28 @@ const ProjectPage = ({ user, pocketbaseUrl }) => {
           if (response.ok) {
             successCount++
           } else {
-            importErrors.push(`Błąd importu "${keywordData.keyword}"`)
+            const errorText = await response.text()
+            let errorMsg = `Błąd importu "${keywordData.keyword}"`
+            
+            if (response.status === 400) {
+              try {
+                const errorData = JSON.parse(errorText)
+                if (errorData.data) {
+                  const fieldErrors = Object.entries(errorData.data).map(([field, error]) => 
+                    `${field}: ${error.message || error.code}`
+                  ).join(', ')
+                  errorMsg += ` - ${fieldErrors}`
+                } else {
+                  errorMsg += ` - ${errorData.message || errorText}`
+                }
+              } catch (parseError) {
+                errorMsg += ` - ${errorText}`
+              }
+            } else {
+              errorMsg += ` (${response.status})`
+            }
+            
+            importErrors.push(errorMsg)
           }
         } catch (error) {
           importErrors.push(`Błąd importu "${keywordData.keyword}": ${error.message}`)
@@ -458,18 +474,7 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
     setDuplicateWarning('')
 
     try {
-      const payload = {
-        userId: user.id,
-        keyword: newKeyword.trim(),
-        matchType: newMatchType,
-        matchValue: newMatchValue.trim(),
-        // active i created są auto-generowane przez PocketBase
-      }
-      
-      // Dodaj projectId jeśli wybrano konkretny projekt
-      if (selectedProjectId && selectedProjectId !== 'all' && selectedProjectId !== 'none') {
-        payload.projectId = selectedProjectId
-      }
+      const payload = await prepareKeywordPayload(newKeyword, newMatchType, newMatchValue, selectedProjectId)
       
       const response = await fetch(`${pocketbaseUrl}/api/collections/keywords/records`, {
         method: 'POST',
@@ -481,7 +486,30 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
       })
       
       if (!response.ok) {
-        throw new Error('Błąd dodawania słowa kluczowego')
+        const errorText = await response.text()
+        console.error('❌ API Error Response:', errorText)
+        
+        let errorMessage = 'Błąd dodawania słowa kluczowego'
+        
+        if (response.status === 400) {
+          try {
+            const errorData = JSON.parse(errorText)
+            if (errorData.data) {
+              const fieldErrors = Object.entries(errorData.data).map(([field, error]) => 
+                `${field}: ${error.message || error.code}`
+              ).join(', ')
+              errorMessage = `Błąd walidacji: ${fieldErrors}`
+            } else {
+              errorMessage = `Błąd walidacji (400): ${errorData.message || errorText}`
+            }
+          } catch (parseError) {
+            errorMessage = `Błąd walidacji (400): ${errorText}`
+          }
+        } else {
+          errorMessage = `Błąd serwera (${response.status}): ${errorText}`
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const newKeywordData = await response.json()
@@ -626,6 +654,106 @@ oferta specjalna\turl\thttps://allegro.pl/oferta/123456`
     
     // Pokaż potwierdzenie
     alert(`Wyeksportowano ${keywordsToExport.length} słów kluczowych do pliku ${filename}`)
+  }
+
+  // Funkcja do wykrywania schematu kolekcji keywords
+  const detectKeywordsSchema = async () => {
+    try {
+      // Sprawdź czy mamy już informację o schemacie w cache
+      const schemaKey = `schema_${pocketbaseUrl}_keywords`
+      const cachedSchema = localStorage.getItem(schemaKey)
+      if (cachedSchema) {
+        return JSON.parse(cachedSchema)
+      }
+
+      // Pobierz informacje o kolekcji
+      const response = await fetch(`${pocketbaseUrl}/api/collections/keywords`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+        },
+      })
+
+      if (response.ok) {
+        const collectionInfo = await response.json()
+        const hasUserId = collectionInfo.schema?.some(field => field.name === 'userId')
+        const hasProjectId = collectionInfo.schema?.some(field => field.name === 'projectId')
+        
+        const schemaInfo = {
+          hasUserId,
+          hasProjectId,
+          timestamp: Date.now()
+        }
+        
+        // Cache na 1 godzinę
+        localStorage.setItem(schemaKey, JSON.stringify(schemaInfo))
+        console.log('🔍 Wykryto schemat keywords:', schemaInfo)
+        return schemaInfo
+      }
+    } catch (error) {
+      console.warn('Nie można wykryć schematu, używam domyślnych ustawień:', error)
+    }
+
+    // Domyślnie zakładamy nowy schemat z userId
+    return { hasUserId: true, hasProjectId: true }
+  }
+
+  // Funkcja do przygotowania payload zgodnie ze schematem
+  const prepareKeywordPayload = async (keyword, matchType, matchValue, projectId = null) => {
+    const schema = await detectKeywordsSchema()
+    
+    const payload = {
+      keyword: keyword.trim(),
+      matchType: matchType,
+      matchValue: matchValue.trim(),
+    }
+
+    // Dodaj userId tylko jeśli schemat go wspiera
+    if (schema.hasUserId) {
+      payload.userId = user.id
+    }
+
+    // Dodaj projectId tylko jeśli schemat go wspiera i mamy wartość
+    if (schema.hasProjectId && projectId && projectId !== 'all' && projectId !== 'none') {
+      payload.projectId = projectId
+    }
+
+    console.log('📦 Przygotowany payload:', payload)
+    console.log('🔧 Schemat bazy:', schema)
+    
+    return payload
+  }
+
+  // Funkcja do testowania i wyświetlania informacji o schemacie
+  const testSchema = async () => {
+    try {
+      console.log('🔍 Sprawdzam schemat bazy danych...')
+      
+      // Wyczyść cache schematu
+      const schemaKey = `schema_${pocketbaseUrl}_keywords`
+      localStorage.removeItem(schemaKey)
+      
+      const schema = await detectKeywordsSchema()
+      
+      const testPayload = await prepareKeywordPayload('test', 'title', 'test value', null)
+      
+      alert(`Informacje o schemacie bazy danych:
+      
+🔧 Schemat keywords:
+• Ma pole userId: ${schema.hasUserId ? '✅ TAK' : '❌ NIE'}
+• Ma pole projectId: ${schema.hasProjectId ? '✅ TAK' : '❌ NIE'}
+
+📦 Przykładowy payload:
+${JSON.stringify(testPayload, null, 2)}
+
+🌐 URL bazy: ${pocketbaseUrl}
+
+${!schema.hasUserId ? '⚠️ UWAGA: Baza nie ma pola userId - prawdopodobnie używa starego schematu!' : ''}`)
+      
+    } catch (error) {
+      console.error('Błąd sprawdzania schematu:', error)
+      alert(`Błąd sprawdzania schematu: ${error.message}`)
+    }
   }
 
   return (
@@ -861,6 +989,13 @@ wosk samochodowy,title,Turtle Wax{'\n'}wosk do auta,brand,Meguiars{'\n'}oferta s
               title="Odśwież listę słów kluczowych"
             >
               🔄 Odśwież
+            </button>
+            <button 
+              onClick={testSchema}
+              className="refresh-btn"
+              title="Sprawdź schemat bazy danych - przydatne przy problemach z dodawaniem słów kluczowych"
+            >
+              🔍 Schemat
             </button>
           </div>
         </div>
